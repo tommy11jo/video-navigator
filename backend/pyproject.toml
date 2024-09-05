@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "backend"
+version = "0.1.0"
+description = ""
+authors = ["tom11my <tommy11jo@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+youtube-transcript-api = "^0.6.2"
+playwright = "^1.46.0"
+google-api-python-client = "^2.144.0"
+python-dotenv = "^1.0.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
