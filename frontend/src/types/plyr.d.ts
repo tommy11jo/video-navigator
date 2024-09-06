@@ -7,6 +7,7 @@ declare module "plyr" {
     elements: Plyr.Elements
 
     currentTime: number
+    duration: number
 
     play(): Promise<void>
     pause(): void
@@ -16,6 +17,7 @@ declare module "plyr" {
     rewind(seekTime: number): void
     forward(seekTime: number): void
     getCurrentTime(): number
+    seek(seekTime: number): void
     getDuration(): number
     getVolume(): number
     isMuted(): boolean
@@ -43,7 +45,10 @@ declare module "plyr" {
     interface Options {
       provider?: string
       youtubeId?: string
-      // Add more options as needed
+      keyboard?: {
+        global?: boolean
+      }
+      controls?: string[]
     }
 
     interface SourceInfo {

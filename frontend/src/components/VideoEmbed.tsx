@@ -5,6 +5,7 @@ import "../styles/plyr.css"
 
 interface YouTubeEmbedProps {
   videoId: string
+  seekTimeInS: number
   setCurrentTimeInS: (time: number) => void
   width?: number
   height?: number
@@ -12,6 +13,7 @@ interface YouTubeEmbedProps {
 
 const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
   videoId,
+  seekTimeInS,
   setCurrentTimeInS,
   width = 560,
   height = 315,
@@ -28,37 +30,86 @@ const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
   }
 
   useEffect(() => {
-    const startTimeUpdateInterval = () => {
-      clearCurrentInterval()
-      intervalRef.current = window.setInterval(() => {
-        if (playerRef.current) {
-          const currentTime = playerRef.current.currentTime
-          setCurrentTimeInS(currentTime)
+    if (!playerRef.current) return
+
+    const updateVideoProgress = (progressPercentage: number) => {
+      progressPercentage = Math.max(0, Math.min(100, progressPercentage))
+      const seekInput = document.querySelector(
+        'input[data-plyr="seek"]'
+      ) as HTMLInputElement
+      if (seekInput) {
+        seekInput.value = progressPercentage.toString()
+        const progressBar = seekInput.nextElementSibling as HTMLProgressElement
+        if (
+          progressBar &&
+          progressBar.classList.contains("plyr__progress__buffer")
+        ) {
+          progressBar.value = progressPercentage
         }
-      }, 200)
+        seekInput.dispatchEvent(new Event("input", { bubbles: true }))
+      }
     }
 
+    const totalDuration = playerRef.current.duration || 0
+    const progressPercentage = (seekTimeInS / totalDuration) * 100
+
+    updateVideoProgress(progressPercentage)
+
+    // Use a setTimeout to ensure the progress update has been applied
+    setTimeout(() => {
+      if (playerRef.current) {
+        playerRef.current.currentTime = seekTimeInS
+        setCurrentTimeInS(seekTimeInS)
+      }
+    }, 50)
+  }, [seekTimeInS, setCurrentTimeInS])
+
+  useEffect(() => {
+    if (!playerRef.current) return
+
+    const updateVideoProgress = (progressPercentage: number) => {
+      progressPercentage = Math.max(0, Math.min(100, progressPercentage))
+      const seekInput = document.querySelector(
+        'input[data-plyr="seek"]'
+      ) as HTMLInputElement
+      if (seekInput) {
+        seekInput.value = progressPercentage.toString()
+        seekInput.dispatchEvent(new Event("input", { bubbles: true }))
+      } else {
+        console.error("No seek input found")
+      }
+    }
+
+    const totalDuration = playerRef.current.duration
+    const progressPercentage = (seekTimeInS / totalDuration) * 100
+
+    updateVideoProgress(progressPercentage)
+
+    // Use a setTimeout to ensure the progress update has been applied
+    setTimeout(() => {
+      if (playerRef.current) {
+        playerRef.current.currentTime = seekTimeInS
+        setCurrentTimeInS(seekTimeInS)
+      }
+    }, 50)
+  }, [seekTimeInS, setCurrentTimeInS])
+
+  useEffect(() => {
     if (containerRef.current && !playerRef.current) {
       playerRef.current = new Plyr(containerRef.current, {
         provider: "youtube",
         youtubeId: videoId,
+        keyboard: {
+          global: true,
+        },
       })
 
-      playerRef.current.on("ready", () => {
-        startTimeUpdateInterval()
-      })
-
-      playerRef.current.on("play", startTimeUpdateInterval)
-
-      playerRef.current.on("pause", startTimeUpdateInterval)
-
-      playerRef.current.on("seeking", () => {
+      playerRef.current.on("timeupdate", () => {
         if (playerRef.current) {
           setCurrentTimeInS(playerRef.current.currentTime)
         }
       })
-
-      playerRef.current.on("timeupdate", () => {
+      playerRef.current.on("seeking", () => {
         if (playerRef.current) {
           setCurrentTimeInS(playerRef.current.currentTime)
         }
