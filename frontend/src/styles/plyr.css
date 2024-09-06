@@ -1,0 +1,8 @@
+/* hide more video popup on pause 
+have not tested whether this works on typical YT player
+https://github.com/sampotts/plyr/issues/976#issuecomment-862810641
+*/
+.plyr iframe[id^="youtube"] {
+  top: -50%;
+  height: 200%;
+}
