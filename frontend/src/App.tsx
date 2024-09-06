@@ -1,16 +1,11 @@
 import { useState } from "react"
 import YouTubeEmbed from "./components/VideoEmbed"
+import { formatTime } from "./utils/formatTime"
 
 function App() {
   const [currentTimeInS, setCurrentTimeInS] = useState(0)
   const [seekTimeInS, setSeekTimeInS] = useState(0)
   const videoId = "VMj-3S1tku0"
-
-  const formatTime = (timeInSeconds: number) => {
-    const minutes = Math.floor(timeInSeconds / 60)
-    const seconds = Math.floor(timeInSeconds % 60)
-    return `${minutes}:${seconds.toString().padStart(2, "0")}`
-  }
 
   const timeList = Array.from({ length: 10 }, (_, i) => i * 30)
 

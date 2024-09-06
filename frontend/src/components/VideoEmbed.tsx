@@ -7,66 +7,20 @@ interface YouTubeEmbedProps {
   videoId: string
   seekTimeInS: number
   setCurrentTimeInS: (time: number) => void
-  width?: number
-  height?: number
 }
 
 const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
   videoId,
   seekTimeInS,
   setCurrentTimeInS,
-  width = 560,
-  height = 315,
 }) => {
   const playerRef = useRef<Plyr | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
-  const intervalRef = useRef<number | null>(null)
-
-  const clearCurrentInterval = () => {
-    if (intervalRef.current) {
-      window.clearInterval(intervalRef.current)
-      intervalRef.current = null
-    }
-  }
 
   useEffect(() => {
     if (!playerRef.current) return
 
-    const updateVideoProgress = (progressPercentage: number) => {
-      progressPercentage = Math.max(0, Math.min(100, progressPercentage))
-      const seekInput = document.querySelector(
-        'input[data-plyr="seek"]'
-      ) as HTMLInputElement
-      if (seekInput) {
-        seekInput.value = progressPercentage.toString()
-        const progressBar = seekInput.nextElementSibling as HTMLProgressElement
-        if (
-          progressBar &&
-          progressBar.classList.contains("plyr__progress__buffer")
-        ) {
-          progressBar.value = progressPercentage
-        }
-        seekInput.dispatchEvent(new Event("input", { bubbles: true }))
-      }
-    }
-
-    const totalDuration = playerRef.current.duration || 0
-    const progressPercentage = (seekTimeInS / totalDuration) * 100
-
-    updateVideoProgress(progressPercentage)
-
-    // Use a setTimeout to ensure the progress update has been applied
-    setTimeout(() => {
-      if (playerRef.current) {
-        playerRef.current.currentTime = seekTimeInS
-        setCurrentTimeInS(seekTimeInS)
-      }
-    }, 50)
-  }, [seekTimeInS, setCurrentTimeInS])
-
-  useEffect(() => {
-    if (!playerRef.current) return
-
+    // hacky workaround since seeking programatically doesn't trigger updates to the progress bar
     const updateVideoProgress = (progressPercentage: number) => {
       progressPercentage = Math.max(0, Math.min(100, progressPercentage))
       const seekInput = document.querySelector(
@@ -77,6 +31,7 @@ const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
         seekInput.dispatchEvent(new Event("input", { bubbles: true }))
       } else {
         console.error("No seek input found")
+        return
       }
     }
 
@@ -85,13 +40,8 @@ const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
 
     updateVideoProgress(progressPercentage)
 
-    // Use a setTimeout to ensure the progress update has been applied
-    setTimeout(() => {
-      if (playerRef.current) {
-        playerRef.current.currentTime = seekTimeInS
-        setCurrentTimeInS(seekTimeInS)
-      }
-    }, 50)
+    playerRef.current.currentTime = seekTimeInS
+    setCurrentTimeInS(seekTimeInS)
   }, [seekTimeInS, setCurrentTimeInS])
 
   useEffect(() => {
@@ -109,15 +59,22 @@ const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
           setCurrentTimeInS(playerRef.current.currentTime)
         }
       })
+
+      // bug in plyr: seeked event doesn't trigger when video is paused, so we use the seeking event
+      // workaround: after seeking, wait a bit then check the new time in the HTML
       playerRef.current.on("seeking", () => {
-        if (playerRef.current) {
-          setCurrentTimeInS(playerRef.current.currentTime)
+        if (!playerRef.current) {
+          console.error("No player found")
+          return
         }
+        // could be problematic on different browsers which take different times to update the UI
+        setTimeout(() => {
+          setCurrentTimeInS(playerRef.current!.currentTime)
+        }, 500)
       })
     }
 
     return () => {
-      clearCurrentInterval()
       if (playerRef.current) {
         playerRef.current.destroy()
       }
@@ -129,7 +86,6 @@ const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
       ref={containerRef}
       data-plyr-provider="youtube"
       data-plyr-embed-id={videoId}
-      style={{ width, height }}
     ></div>
   )
 }
