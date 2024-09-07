@@ -1,3 +1,4 @@
 backend/screenshots
 backend/.env
+backend/**/__pycache__
 frontend/node_modules
