@@ -1,4 +1,4 @@
-# uvicorn main:app --reload
+# uvicorn app.main:app --reload
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.video_overview import video_overview

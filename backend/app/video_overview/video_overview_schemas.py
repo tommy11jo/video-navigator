@@ -21,7 +21,7 @@ class VideoOverviewFunctionCallResponse(BaseModel):
 
 class Quote(BaseModel):
     text: str
-    time: int
+    time: float
 
 
 class Chapter(BaseModel):
@@ -50,3 +50,13 @@ class ChapterData(BaseModel):
 class VideoMetadata(BaseModel):
     title: str
     chapters: List[ChapterData]
+
+
+class Moment(BaseModel):
+    text: str
+    start: float  # in seconds
+    duration: float  # in seconds
+
+
+class Transcript(BaseModel):
+    moments: List[Moment]
