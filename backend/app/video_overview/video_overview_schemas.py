@@ -28,12 +28,14 @@ class Chapter(BaseModel):
     title: str
     key_quotes: List[Quote]
     key_points: List[str]
+    time_in_secs: float
 
 
 class VideoOverview(BaseModel):
     video_title: str
     chapters: List[Chapter]
-    screenshots: List[str]
+    # screenshot urls are treated as extra data, not part of the core schema
+    # because they take much longer to generate
 
 
 class Message(BaseModel):
@@ -43,7 +45,7 @@ class Message(BaseModel):
 
 
 class ChapterData(BaseModel):
-    timestamp: str
+    time_in_secs: int
     title: str
 
 

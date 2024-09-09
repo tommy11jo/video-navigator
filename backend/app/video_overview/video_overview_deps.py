@@ -4,6 +4,7 @@ from .video_overview_schemas import ChatRole
 import os
 from googleapiclient.discovery import build
 from supabase import create_client
+import logging
 
 load_dotenv()
 ai = OpenAI()
@@ -34,3 +35,11 @@ def get_supabase_client():
     return create_client(
         os.environ.get("SUPABASE_URL"), os.environ.get("SUPABASE_API_KEY")
     )
+
+
+def get_logger():
+    logging.basicConfig(level=logging.WARNING)
+    logger = logging.getLogger(__name__)
+    # uncomment for dev mode
+    logger.setLevel(logging.DEBUG)
+    return logger
