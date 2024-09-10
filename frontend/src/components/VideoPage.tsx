@@ -34,9 +34,8 @@ const VideoPage = () => {
     if (!videoId) return
     const fetchVideoData = async () => {
       const response = await axios.get<VideoOverview>(
-        `http://localhost:8000/get-overview/${videoId}`
+        `${import.meta.env.VITE_API_URL}/get-overview/${videoId}`
       )
-      console.log(response.data)
       setVideoOverview(response.data)
     }
     fetchVideoData()
@@ -61,11 +60,8 @@ const VideoPage = () => {
   const handleQuoteClick = (time: number) => {
     setSeekTimeInS(time)
   }
-  console.log(
-    "use the current time in s to focus on relevant chapter",
-    currentTimeInS
-  )
-
+  if (!videoOverview || !videoOverview.chapters)
+    return <div>Loading video overview...</div>
   return (
     <div className="flex flex-col md:flex-row">
       <div className="w-full md:w-1/2 p-4">
@@ -76,16 +72,12 @@ const VideoPage = () => {
           key={videoId}
         />
         <div className="card mt-4">
-          <span className="text-lg font-bold">
-            {videoOverview?.video_title}
-          </span>
+          <span className="text-lg font-bold">{videoOverview.video_title}</span>
           <div className="flex flex-row justify-between text-sm">
-            {videoOverview?.channel_title && (
-              <span className="block text-blue-500 hover:underline mt-2">
-                {videoOverview.channel_title}
-              </span>
+            {videoOverview.channel_title && (
+              <span className="block mt-2">{videoOverview.channel_title}</span>
             )}
-            {videoOverview?.published_iso && (
+            {videoOverview.published_iso && (
               <span className="block mt-2">
                 {DateTime.fromISO(videoOverview.published_iso).toLocaleString(
                   DateTime.DATE_FULL
@@ -108,17 +100,21 @@ const VideoPage = () => {
         </div>
       </div>
 
-      <div className="w-full md:w-1/2 p-2 overflow-auto h-[80svh] border-2 border-gray-300 rounded-lg text-sm">
-        {videoOverview && (
-          <div>
-            {videoOverview.chapters.map((chapter: Chapter, index: number) => (
-              <div key={index} className="text-sm">
+      <div className="w-full md:w-1/2 p-2 overflow-auto h-[80svh] border-2 border-gray-700 rounded-lg text-sm">
+        <div>
+          {videoOverview.chapters.map((chapter: Chapter, index: number) => (
+            <div
+              key={index}
+              className={`text-sm ${
+                index === currentChapterIndex ? "bg-gray-800 rounded-lg" : ""
+              }`}
+            >
+              <div className="p-1">
                 <h3 className="text-lg font-semibold mb-2">
                   <span
                     className="text-blue-accent cursor-pointer hover:underline"
                     onClick={() => handleQuoteClick(chapter.key_quotes[0].time)}
                   >
-                    {index === currentChapterIndex && "⭐ "}
                     {chapter.title}
                   </span>
                 </h3>
@@ -148,9 +144,9 @@ const VideoPage = () => {
                   </ul>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

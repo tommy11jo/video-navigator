@@ -9,6 +9,28 @@ function HomePage() {
   const [isGenerating, setIsGenerating] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
   const inputRef = useRef<HTMLInputElement>(null)
+
+  const staticExamples = [
+    {
+      videoId: "uI7J3II59lc",
+      title: "Hypercard in the World, May 2016",
+    },
+    {
+      videoId: "C27RVio2rOs",
+      title: "Michael Seibel - Building Product",
+    },
+    {
+      videoId: "VMj-3S1tku0",
+      title:
+        "The spelled-out intro to neural networks and backpropagation: building micrograd",
+    },
+    {
+      videoId: "Uj6skZIxPuI",
+      title:
+        "David Reich – How One Small Tribe Conquered the World 70,000 Years Ago",
+    },
+  ]
+
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -18,10 +40,9 @@ function HomePage() {
   const generateOverviewMutation = useMutation({
     mutationFn: (videoId: string) =>
       axios
-        .post(`http://localhost:8000/generate-overview/${videoId}`)
+        .post(`${import.meta.env.VITE_API_URL}/generate-overview/${videoId}`)
         .then((res) => res.data),
-    onSuccess: (data, videoId) => {
-      console.log("Overview generated successfully:", data)
+    onSuccess: (_, videoId) => {
       setIsGenerating(false)
       navigate(`/video/${videoId}`)
     },
@@ -47,7 +68,7 @@ function HomePage() {
 
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="container mx-auto px-4 pt-8">
+      <div className="container mx-auto px-1 pt-8">
         <form onSubmit={handleSubmit} className="max-w-md mx-auto mb-8">
           <input
             ref={inputRef}
@@ -78,24 +99,18 @@ function HomePage() {
           )}
         </form>
         <div className="mt-8 max-w-md mx-auto">
-          <p className="font-bold mb-4">Examples:</p>
-          <ul className="list-none">
-            <li className="mb-2">
-              <Link
-                to="/video/uI7J3II59lc"
-                className="text-blue-accent hover:underline"
-              >
-                Example 1
-              </Link>
-            </li>
-            <li className="mb-2">
-              <Link
-                to="/video/VMj-3S1tku0"
-                className="text-blue-accent hover:underline"
-              >
-                Example 2
-              </Link>
-            </li>
+          <p className="font-bold">Examples:</p>
+          <ul className="list-disc">
+            {staticExamples.map((example) => (
+              <li className="mx-2" key={example.videoId}>
+                <Link
+                  to={`/video/${example.videoId}`}
+                  className="text-blue-accent hover:underline"
+                >
+                  {example.title}
+                </Link>
+              </li>
+            ))}
           </ul>
         </div>
       </div>

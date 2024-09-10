@@ -9,11 +9,25 @@ from .video_overview_deps import get_logger
 logger = get_logger()
 
 
+def normalize_spacing(text: str) -> str:
+    # Remove leading and trailing whitespace
+    text = text.strip()
+    # Replace multiple spaces with a single space
+    text = re.sub(r"\s+", " ", text)
+    # Remove newlines
+    text = text.replace("\n", " ")
+    return text
+
+
 async def get_transcript(video_id: str) -> Transcript:
     transcript = YouTubeTranscriptApi.get_transcript(video_id)
     return Transcript(
         moments=[
-            Moment(text=i["text"], start=i["start"], duration=i["duration"])
+            Moment(
+                text=normalize_spacing(i["text"]),
+                start=i["start"],
+                duration=i["duration"],
+            )
             for i in transcript
         ]
     )
@@ -86,10 +100,11 @@ def get_index_to_time_in_secs(moments: Tuple[Tuple[str, int, int]]):
 def get_approximate_timestamp(
     quote: str, transcript_text: str, transcript: Transcript
 ) -> int:
+    # must add space to ensure proper indexing in transcript_text which has these spaces
     index_to_time_in_secs = get_index_to_time_in_secs(
         tuple(
             [
-                (moment.text, moment.start, moment.duration)
+                (moment.text + " ", moment.start, moment.duration)
                 for moment in transcript.moments
             ]
         )

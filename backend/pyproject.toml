@@ -15,6 +15,7 @@ uvicorn = "^0.30.6"
 pydantic-settings = "^2.4.0"
 openai = "^1.44.0"
 supabase = "^2.7.4"
+fireworks-ai = "^0.15.1"
 
 
 [build-system]

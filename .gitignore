@@ -1,4 +1,5 @@
 backend/screenshots
 backend/.env
 backend/**/__pycache__
+frontend/.env
 frontend/node_modules

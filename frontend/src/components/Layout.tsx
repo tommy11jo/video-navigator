@@ -2,7 +2,7 @@ import { Outlet, Link } from "react-router-dom"
 function Layout() {
   return (
     <div className="min-h-screen bg-black text-white">
-      <div className="container mx-auto px-4 pt-4">
+      <div className="container mx-auto px-1 pt-4">
         <div className="flex flex-col mb-4">
           <Link to="/" className="text-lg font-bold hover:text-gray-300 mb-2">
             Youtube Video Navigator

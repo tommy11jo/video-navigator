@@ -5,13 +5,21 @@ import os
 from googleapiclient.discovery import build
 from supabase import create_client
 import logging
+from fireworks.client import Fireworks
+
 
 load_dotenv()
-ai = OpenAI()
+openai_client = OpenAI()
+
+fireworks_client = Fireworks(api_key=os.getenv("FIREWORKS_API_KEY"))
 
 
 def get_openai_client():
-    return ai
+    return openai_client
+
+
+def get_fireworks_client():
+    return fireworks_client
 
 
 def assistant(content: str):
