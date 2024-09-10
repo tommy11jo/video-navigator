@@ -26,6 +26,7 @@ const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
           keyboard: {
             global: true,
           },
+          invertTime: false,
         })
 
         playerRef.current.on("timeupdate", () => {

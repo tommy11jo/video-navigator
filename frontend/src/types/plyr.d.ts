@@ -49,6 +49,7 @@ declare module "plyr" {
         global?: boolean
       }
       controls?: string[]
+      invertTime?: boolean
     }
 
     interface SourceInfo {

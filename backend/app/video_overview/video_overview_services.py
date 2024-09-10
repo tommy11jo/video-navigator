@@ -27,10 +27,16 @@ def timestamp_to_seconds(timestamp: str) -> int:
 def get_video_metadata(video_id) -> VideoMetadata:
     try:
         youtube = get_youtube_client()
-        request = youtube.videos().list(part="snippet", id=video_id)
+        request = youtube.videos().list(part="snippet,contentDetails", id=video_id)
         response = request.execute()
-        title = response["items"][0]["snippet"]["title"]
-
+        item = response["items"][0]
+        title = item["snippet"]["title"]
+        metadata = item["snippet"]
+        published_iso = metadata["publishedAt"]
+        channel_title = metadata["channelTitle"]
+        content_details = item["contentDetails"]
+        duration_iso = content_details["duration"]
+        chapters_list = []
         if "items" in response and len(response["items"]) > 0:
             description = response["items"][0]["snippet"]["description"]
 
@@ -50,17 +56,19 @@ def get_video_metadata(video_id) -> VideoMetadata:
                     for timestamp, title in chapters
                 ]
 
-                return VideoMetadata(title=title, chapters=chapters_list)
-            else:
-                return VideoMetadata(title=title, chapters=[])
         else:
             logger.error(
                 f"Video not found or no description available for video_id: {video_id}"
             )
-            return VideoMetadata(title=title, chapters=[])
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
-        return VideoMetadata(title=title, chapters=[])
+    return VideoMetadata(
+        title=title,
+        chapters=chapters_list,
+        duration_iso=duration_iso,
+        channel_title=channel_title,
+        published_iso=published_iso,
+    )
 
 
 @lru_cache(maxsize=None)

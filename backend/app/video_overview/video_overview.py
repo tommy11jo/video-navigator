@@ -16,6 +16,7 @@ from .video_overview_services import (
     get_approximate_timestamp,
 )
 from .video_overview_deps import get_logger
+import re
 
 logger = get_logger()
 
@@ -36,10 +37,26 @@ The video overview should help the user understand the video contents at a glanc
 Note that the transcript is not perfect, so you may need to assume where sentences start and end.
 Follow these guidelines:
 {chapter_dne_str if len(chapters) == 0 else chapter_exist_str}
-- Output 2-4 key points per chapter. Each key point should be an informational key detail or takeaway.
-- Output 2-4 key quotes per chapter. Key quotes must be short and exact, including bad grammar, typos,and fluff. Do NOT wrap each quote in quotes.
+- Output 2-4 points per chapter. Each point should be an informational key detail or takeaway.
+- Output 2-4 quotes per chapter. 
+    - Each quote must be self-contained and short.
+    - Each quote must be an EXACT segment from the transcript. 
+    - Do not add extra punctations. 
+    - Do not fix typos.
+    - Do not change the capitalization.
+    - Also, do not wrap each quote in quotes.
 """
     return video_overview_prompt
+
+
+def normalize_spacing(text: str) -> str:
+    # Remove leading and trailing whitespace
+    text = text.strip()
+    # Replace multiple spaces with a single space
+    text = re.sub(r"\s+", " ", text)
+    # Remove newlines
+    text = text.replace("\n", " ")
+    return text
 
 
 # testing video id: VMj-3S1tku0
@@ -48,7 +65,7 @@ async def generate_video_overview(video_id: str, supabase=Depends(get_supabase_c
     openai_client = get_openai_client()
 
     transcript = await get_transcript(video_id)
-    transcript_text = " ".join([i.text for i in transcript.moments])
+    transcript_text = " ".join([normalize_spacing(i.text) for i in transcript.moments])
 
     video_metadata = get_video_metadata(video_id)
     chapters = [data.title for data in video_metadata.chapters]
@@ -68,8 +85,8 @@ async def generate_video_overview(video_id: str, supabase=Depends(get_supabase_c
         user(f"Here is the transcript: \n{transcript_text}"),
     ]
     completion = openai_client.beta.chat.completions.parse(
-        # model="gpt-4o-2024-08-06",
-        model="gpt-4o-mini",
+        model="gpt-4o-2024-08-06",
+        # model="gpt-4o-mini",
         messages=messages,
         response_format=VideoOverviewFunctionCallResponse,
     )
@@ -96,7 +113,13 @@ async def generate_video_overview(video_id: str, supabase=Depends(get_supabase_c
             )
         )
 
-    video_overview = VideoOverview(video_title=video_title, chapters=chapters)
+    video_overview = VideoOverview(
+        video_title=video_title,
+        chapters=chapters,
+        published_iso=video_metadata.published_iso,
+        duration_iso=video_metadata.duration_iso,
+        channel_title=video_metadata.channel_title,
+    )
     video_overview_dict = video_overview.model_dump()
 
     try:
@@ -139,3 +162,9 @@ async def get_video_overview(
 async def get_transcript_by_video_id(video_id: str):
     transcript = await get_transcript(video_id)
     return transcript
+
+
+@router.get("/get-video-metadata/{video_id}")
+async def get_video_metadata_by_video_id(video_id: str):
+    metadata = get_video_metadata(video_id)
+    return metadata

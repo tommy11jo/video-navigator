@@ -34,6 +34,9 @@ class Chapter(BaseModel):
 class VideoOverview(BaseModel):
     video_title: str
     chapters: List[Chapter]
+    published_iso: str
+    duration_iso: str
+    channel_title: str
     # screenshot urls are treated as extra data, not part of the core schema
     # because they take much longer to generate
 
@@ -52,6 +55,9 @@ class ChapterData(BaseModel):
 class VideoMetadata(BaseModel):
     title: str
     chapters: List[ChapterData]
+    published_iso: str
+    duration_iso: str
+    channel_title: str
 
 
 class Moment(BaseModel):
