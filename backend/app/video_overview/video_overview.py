@@ -1,5 +1,5 @@
-from fastapi import APIRouter, Depends
-from pydantic import ValidationError
+from fastapi import APIRouter, Depends, Request
+from pydantic import ValidationError, BaseModel
 
 from .video_overview_deps import (
     assistant,
@@ -18,8 +18,11 @@ from typing import List, Optional
 from .video_overview_deps import get_supabase_client
 from fastapi import HTTPException
 from .video_overview_services import (
+    get_claude_completion,
     get_transcript,
     get_video_metadata,
+    incr_rate_limit,
+    rate_limit_exceeded,
 )
 from .video_overview_deps import get_logger
 
@@ -33,23 +36,30 @@ chapter_max_range = 5 if testing else 30
 
 
 def get_system_prompt(existing_chapters: List[str] | None = None):
+    chapters_str = "\n".join(existing_chapters)
+    chapters_info = (
+        f"""The existing chapters are:
+ {chapters_str}"""
+        if existing_chapters
+        else ""
+    )
     return f"""Your job is to generate a video overview for the provided transcript. 
+The transcript might contain typos. Do your best to infer the correct text.
 Output about {chapter_min_range}-{chapter_max_range} chapters depending on the length and density of the transcript.
 For each chapter, output the following:
 - a chapter title that encapsulates the current section
-- 2-6 key points to provide an overview of the chapter. Each key point is a sentence that is either a direct quote or an essential fact / detail.
+- 2-8 key points to provide an overview of the chapter. Each key point is a sentence that is either a direct quote or an essential fact / detail.
     - Quotes are clear and information dense.
-    - Key points are concise and often a paraphrase or summary of a few sentences.
+    - Key points are concise and entity dense, with concrete examples when relevant.
+    - Key points can be a paraphrase or summary of a few sentences.
 - for each key point, output the start time of the beginning of the key point in the transcript.
 - 2-4 associations that a user might search or associate with this chapter. Each association should be a specific keyword or phrase.
 
-{f"The existing chapters are: {existing_chapters}" if existing_chapters else ""}
-
-
-"""
+{chapters_info}"""
 
 
 def get_example_output():
+    # TODO: test formatting of key points and times
     return VideoOverviewFunctionCallResponse(
         chapters=[
             ChapterData(
@@ -117,7 +127,6 @@ def get_example_output():
                     "limited functionality MVPs",
                     "stripe",
                     "airbnb",
-                    "twitch",
                 ],
             ),
         ]
@@ -133,19 +142,42 @@ def get_timestamped_transcript_text(transcript: Transcript):
     return result
 
 
+class GenerateOverviewRequest(BaseModel):
+    user_api_key: Optional[str] = None
+
+
 # test url: https://www.youtube.com/watch?v=C27RVio2rOs
 # testing video id: VMj-3S1tku0
 @router.post("/generate-overview/{video_id}")
 async def generate_video_overview(
     video_id: str,
+    request: Request,
+    body: GenerateOverviewRequest,
     supabase=Depends(get_supabase_client),
-    anthropic_client=Depends(get_anthropic_client),
 ):
+    user_api_key = body.user_api_key
     existing_overview = await get_video_overview(video_id, supabase)
     if existing_overview:
         return existing_overview
 
+    if await rate_limit_exceeded(request, supabase):
+        # TODO: allow user to use their token in this case
+        if not user_api_key:
+            raise HTTPException(
+                status_code=429,
+                detail="Free tier quota exceeded. Please use your API key to continue.",
+            )
+        anthropic_client = get_anthropic_client(user_api_key)
+    else:
+        anthropic_client = get_anthropic_client()
+    logger.info(f"Generate new video overview for video_id: {video_id}")
+
     transcript = await get_transcript(video_id)
+    if not transcript:
+        raise HTTPException(
+            status_code=422,
+            detail="Unable to process request. Transcript not available for the given video ID.",
+        )
     transcript_text = get_timestamped_transcript_text(transcript)
 
     video_metadata = get_video_metadata(video_id)
@@ -169,15 +201,8 @@ async def generate_video_overview(
         assistant("Here is the JSON overview:\n{"),
     ]
     system_prompt = get_system_prompt(existing_chapters=chapters)
-    completion = anthropic_client.messages.create(
-        model="claude-3-5-sonnet-20240620",
-        system=system_prompt,
-        messages=messages,
-        max_tokens=3000,
-        temperature=0.2,
-    )
+    content = get_claude_completion(messages, system_prompt, anthropic_client)
 
-    content = completion.content[0].text
     result = "{" + content
 
     json_end = result.rfind("}")
@@ -219,9 +244,11 @@ async def generate_video_overview(
         supabase.table("video_overviews").insert(
             {
                 "video_id": video_id,
+                "video_title": video_metadata.title,
                 "overview": video_overview_dict,
             }
         ).execute()
+        await incr_rate_limit(request, supabase)
         logger.info(f"Video overview saved for video_id: {video_id}")
     except Exception as e:
         logger.error(f"Error saving video overview: {str(e)}")

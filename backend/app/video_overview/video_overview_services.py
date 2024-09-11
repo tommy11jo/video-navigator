@@ -1,10 +1,18 @@
+from anthropic import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    RateLimitError,
+)
 from youtube_transcript_api import YouTubeTranscriptApi
 import re
 from .video_overview_deps import get_youtube_client
 from .video_overview_schemas import Transcript, VideoMetadata, Moment
-from .video_overview_deps import get_logger
+from .video_overview_deps import get_logger, get_supabase_client
+from fastapi import Depends, HTTPException, Request
 
 logger = get_logger()
+RATE_LIMIT = 2
 
 
 def normalize_spacing(text: str) -> str:
@@ -17,18 +25,28 @@ def normalize_spacing(text: str) -> str:
     return text
 
 
-async def get_transcript(video_id: str) -> Transcript:
-    transcript = YouTubeTranscriptApi.get_transcript(video_id)
-    return Transcript(
-        moments=[
-            Moment(
-                text=normalize_spacing(i["text"]),
-                start=i["start"],
-                duration=i["duration"],
-            )
-            for i in transcript
-        ]
-    )
+async def get_transcript(video_id: str) -> Transcript | None:
+    try:
+        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        if not transcript:
+            return None
+        return Transcript(
+            moments=[
+                Moment(
+                    text=normalize_spacing(i["text"]),
+                    start=i["start"],
+                    duration=i["duration"],
+                )
+                for i in transcript
+            ]
+        )
+    except Exception as e:
+        logger.error(f"Error fetching transcript for video {video_id}: {str(e)}")
+        truncated_error = str(e)[:100] + "..." if len(str(e)) > 100 else str(e)
+        raise HTTPException(
+            status_code=422,
+            detail=f"Failed to fetch transcript for video {video_id}: {truncated_error}",
+        )
 
 
 def timestamp_to_seconds(timestamp: str) -> int:
@@ -81,3 +99,61 @@ def get_video_metadata(video_id) -> VideoMetadata:
         channel_title=channel_title,
         published_iso=published_iso,
     )
+
+
+async def rate_limit_exceeded(request: Request, supabase=Depends(get_supabase_client)):
+    return True
+    # TODO: Make sure this work with cloudflare tunnel setup
+    # cf_connecting_ip = request.headers.get("cf-connecting-ip")
+    # When running locally where the cf-connecting-ip is not set, assume rate limit is exceeded
+    # if not cf_connecting_ip:
+    #     return True
+    # result = (
+    #     supabase.table("rate_limits")
+    #     .select("count")
+    #     .eq("ip", cf_connecting_ip)
+    #     .execute()
+    # )
+    # count = result.data[0]["count"]
+    # return count >= RATE_LIMIT
+
+
+async def incr_rate_limit(request: Request, supabase=Depends(get_supabase_client)):
+    return
+    # TODO
+    # Assumption: this header is guaranteed to exist when request comes from cloudflare tunnel
+    # cf_connecting_ip = request.headers.get("cf-connecting-ip")
+    # if not cf_connecting_ip:
+    #     return
+    # supabase.table("rate_limits").upsert(
+    #     {"ip": cf_connecting_ip, "count": 1},
+    #     on_conflict="ip",
+    #     update_columns=["count"],
+    #     count_column="count",
+    # ).execute()
+
+
+def get_claude_completion(messages, system_prompt, anthropic_client) -> str:
+    try:
+        completion = anthropic_client.messages.create(
+            model="claude-3-5-sonnet-20240620",
+            system=system_prompt,
+            messages=messages,
+            max_tokens=3000,
+            temperature=0.2,
+        )
+
+    except RateLimitError as e:
+        logger.error(f"Rate limit exceeded: {str(e)}")
+        raise HTTPException(
+            status_code=429, detail="Rate limit exceeded. Please try again later."
+        )
+    except (APIStatusError, APITimeoutError, APIConnectionError) as e:
+        logger.error(f"API error: {str(e)}")
+        raise HTTPException(status_code=e.status_code, detail=f"API error: {str(e)}")
+    except Exception as e:
+        logger.error(f"Unexpected error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
+
+    content = completion.content[0].text
+    return content

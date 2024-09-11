@@ -1,3 +1,4 @@
+from typing import Optional
 from openai import OpenAI
 from dotenv import load_dotenv
 from .video_overview_schemas import ChatRole
@@ -9,7 +10,6 @@ from fireworks.client import Fireworks
 import anthropic
 
 load_dotenv()
-anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTROPIC_API_KEY"))
 
 openai_client = OpenAI()
 
@@ -24,8 +24,8 @@ def get_fireworks_client():
     return fireworks_client
 
 
-def get_anthropic_client():
-    return anthropic_client
+def get_anthropic_client(api_key: Optional[str] = None):
+    return anthropic.Anthropic(api_key=api_key or os.getenv("ANTROPIC_API_KEY"))
 
 
 def assistant(content: str):

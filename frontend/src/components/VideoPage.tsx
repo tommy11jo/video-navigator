@@ -3,6 +3,7 @@ import YouTubeEmbed from "./VideoEmbed"
 import { useParams } from "react-router-dom"
 import axios from "axios"
 import { DateTime } from "luxon"
+import "../styles/custom-scrollbar.css"
 
 export interface VideoOverview {
   chapters: Chapter[]
@@ -103,7 +104,7 @@ const VideoPage = () => {
         </div>
       </div>
 
-      <div className="w-full md:w-1/2 p-2 overflow-auto h-[80svh] border-2 border-gray-700 rounded-lg text-sm">
+      <div className="w-full md:w-1/2 p-2 overflow-auto h-[80svh] border-2 border-gray-700 rounded-lg text-sm custom-scrollbar">
         <div>
           {videoOverview.chapters.map((chapter: Chapter, index: number) => (
             <div
@@ -123,6 +124,18 @@ const VideoPage = () => {
                     {chapter.title}
                   </span>
                 </h3>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {chapter.associations.map(
+                    (association: string, associationIndex: number) => (
+                      <span
+                        key={associationIndex}
+                        className="px-2 py-1 bg-gray-700 text-white text-xs rounded-full"
+                      >
+                        {association}
+                      </span>
+                    )
+                  )}
+                </div>
                 <div className="m-2">
                   <ul className="list-disc pl-5">
                     {chapter.key_points.map(
@@ -138,18 +151,6 @@ const VideoPage = () => {
                       )
                     )}
                   </ul>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {chapter.associations.map(
-                      (association: string, associationIndex: number) => (
-                        <span
-                          key={associationIndex}
-                          className="px-2 py-1 bg-gray-700 text-white text-xs rounded-full"
-                        >
-                          {association}
-                        </span>
-                      )
-                    )}
-                  </div>
                 </div>
               </div>
             </div>
