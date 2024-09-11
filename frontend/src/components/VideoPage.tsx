@@ -14,11 +14,11 @@ export interface VideoOverview {
 
 export interface Chapter {
   title: string
-  key_quotes: Quote[]
-  key_points: string[]
+  key_points: KeyPoint[]
+  associations: string[]
 }
 
-export interface Quote {
+export interface KeyPoint {
   text: string
   time: number
 }
@@ -44,9 +44,9 @@ const VideoPage = () => {
   useEffect(() => {
     if (!videoOverview) return
     const chapterIndex = videoOverview.chapters.findIndex((chapter, index) => {
-      const currentChapterStart = chapter.key_quotes[0]?.time ?? 0
+      const currentChapterStart = chapter.key_points[0]?.time ?? 0
       const nextChapterStart =
-        videoOverview.chapters[index + 1]?.key_quotes[0]?.time ?? Infinity
+        videoOverview.chapters[index + 1]?.key_points[0]?.time ?? Infinity
       return (
         currentTimeInS >= currentChapterStart &&
         currentTimeInS < nextChapterStart
@@ -57,9 +57,10 @@ const VideoPage = () => {
     )
   }, [currentTimeInS, videoOverview])
 
-  const handleQuoteClick = (time: number) => {
+  const handleKeyPointClick = (time: number) => {
     setSeekTimeInS(time)
   }
+
   if (!videoOverview || !videoOverview.chapters)
     return <div>Loading video overview...</div>
   return (
@@ -87,14 +88,16 @@ const VideoPage = () => {
           </div>
           <div className="flex flex-col text-sm">
             {videoId && (
-              <a
-                href={`https://www.youtube.com/watch?v=${videoId}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-blue-500 hover:underline mt-2"
-              >
-                See on YouTube
-              </a>
+              <div className="mt-2">
+                <a
+                  href={`https://www.youtube.com/watch?v=${videoId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 hover:underline"
+                >
+                  See on YouTube
+                </a>
+              </div>
             )}
           </div>
         </div>
@@ -110,38 +113,43 @@ const VideoPage = () => {
               }`}
             >
               <div className="p-1">
-                <h3 className="text-lg font-semibold mb-2">
+                <h3 className="text-lg font-semibold mb-2 flex items-center">
                   <span
-                    className="text-blue-accent cursor-pointer hover:underline"
-                    onClick={() => handleQuoteClick(chapter.key_quotes[0].time)}
+                    className="cursor-pointer mr-2 text-blue-accent hover:underline"
+                    onClick={() =>
+                      handleKeyPointClick(chapter.key_points[0].time)
+                    }
                   >
                     {chapter.title}
                   </span>
                 </h3>
                 <div className="m-2">
-                  <h4 className="font-semibold mt-2">Key Points:</h4>
                   <ul className="list-disc pl-5">
                     {chapter.key_points.map(
-                      (point: string, pointIndex: number) => (
-                        <li key={pointIndex}>{point}</li>
-                      )
-                    )}
-                  </ul>
-                  <h4 className="font-semibold mt-2">Key Quotes:</h4>
-                  <ul className="list-disc pl-5">
-                    {chapter.key_quotes.map(
-                      (quote: Quote, quoteIndex: number) => (
-                        <li key={quoteIndex}>
+                      (keyPoint: KeyPoint, pointIndex: number) => (
+                        <li key={pointIndex}>
                           <span
-                            className="text-blue-accent cursor-pointer hover:underline"
-                            onClick={() => handleQuoteClick(quote.time)}
+                            className="cursor-pointer text-gray-300 hover:text-white hover:underline"
+                            onClick={() => handleKeyPointClick(keyPoint.time)}
                           >
-                            "{quote.text}"
+                            {keyPoint.text}
                           </span>
                         </li>
                       )
                     )}
                   </ul>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {chapter.associations.map(
+                      (association: string, associationIndex: number) => (
+                        <span
+                          key={associationIndex}
+                          className="px-2 py-1 bg-gray-700 text-white text-xs rounded-full"
+                        >
+                          {association}
+                        </span>
+                      )
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

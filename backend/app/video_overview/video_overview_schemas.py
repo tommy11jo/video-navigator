@@ -9,26 +9,26 @@ class ChatRole(str, Enum):
     ASSISTANT = "assistant"
 
 
-class ChapterForFunctionCall(BaseModel):
-    title: str
-    key_quotes: List[str]
-    key_points: List[str]
-
-
-class VideoOverviewFunctionCallResponse(BaseModel):
-    chapters: List[ChapterForFunctionCall]
-
-
-class Quote(BaseModel):
+class KeyPoint(BaseModel):
     text: str
     time: float
 
 
 class Chapter(BaseModel):
     title: str
-    key_quotes: List[Quote]
+    key_points: List[KeyPoint]
+    associations: List[str]
+
+
+class ChapterData(BaseModel):
+    title: str
     key_points: List[str]
-    time_in_secs: float
+    key_point_start_times: List[float]
+    associations: List[str]
+
+
+class VideoOverviewFunctionCallResponse(BaseModel):
+    chapters: List[ChapterData]
 
 
 class VideoOverview(BaseModel):
@@ -37,8 +37,6 @@ class VideoOverview(BaseModel):
     published_iso: str
     duration_iso: str
     channel_title: str
-    # screenshot urls are treated as extra data, not part of the core schema
-    # because they take much longer to generate
 
 
 class Message(BaseModel):
@@ -47,14 +45,14 @@ class Message(BaseModel):
     content: str
 
 
-class ChapterData(BaseModel):
+class YTChapterData(BaseModel):
     time_in_secs: int
     title: str
 
 
 class VideoMetadata(BaseModel):
     title: str
-    chapters: List[ChapterData]
+    chapters: List[YTChapterData]
     published_iso: str
     duration_iso: str
     channel_title: str

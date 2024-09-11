@@ -1,6 +1,4 @@
 from youtube_transcript_api import YouTubeTranscriptApi
-from typing import Tuple
-from functools import lru_cache
 import re
 from .video_overview_deps import get_youtube_client
 from .video_overview_schemas import Transcript, VideoMetadata, Moment
@@ -83,34 +81,3 @@ def get_video_metadata(video_id) -> VideoMetadata:
         channel_title=channel_title,
         published_iso=published_iso,
     )
-
-
-@lru_cache(maxsize=None)
-def get_index_to_time_in_secs(moments: Tuple[Tuple[str, int, int]]):
-    # returns a map from char index in transcript to associated chunk timestamp in seconds
-    index_to_time_in_secs = {}
-    index = 0
-    for text, start, _ in moments:
-        for _ in text:
-            index_to_time_in_secs[index] = start
-            index += 1
-    return index_to_time_in_secs
-
-
-def get_approximate_timestamp(
-    quote: str, transcript_text: str, transcript: Transcript
-) -> int:
-    # must add space to ensure proper indexing in transcript_text which has these spaces
-    index_to_time_in_secs = get_index_to_time_in_secs(
-        tuple(
-            [
-                (moment.text + " ", moment.start, moment.duration)
-                for moment in transcript.moments
-            ]
-        )
-    )
-
-    quote_index = transcript_text.find(quote)
-    if quote_index not in index_to_time_in_secs:
-        return -1
-    return index_to_time_in_secs[quote_index]

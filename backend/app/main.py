@@ -2,7 +2,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.video_overview import video_overview
-from app.screenshot import screenshot
 
 app = FastAPI()
 
@@ -21,4 +20,3 @@ def read_root():
 
 
 app.include_router(video_overview.router)
-app.include_router(screenshot.router)

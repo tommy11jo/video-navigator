@@ -20,7 +20,6 @@ const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
   useEffect(() => {
     if (containerRef.current) {
       if (!playerRef.current) {
-        console.log("Creating new player")
         playerRef.current = new Plyr(containerRef.current, {
           provider: "youtube",
           keyboard: {
@@ -28,7 +27,6 @@ const YouTubeEmbed: React.FC<YouTubeEmbedProps> = ({
           },
           invertTime: false,
         })
-
         playerRef.current.on("timeupdate", () => {
           if (playerRef.current) {
             setCurrentTimeInS(playerRef.current.currentTime)

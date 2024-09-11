@@ -6,9 +6,11 @@ from googleapiclient.discovery import build
 from supabase import create_client
 import logging
 from fireworks.client import Fireworks
-
+import anthropic
 
 load_dotenv()
+anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTROPIC_API_KEY"))
+
 openai_client = OpenAI()
 
 fireworks_client = Fireworks(api_key=os.getenv("FIREWORKS_API_KEY"))
@@ -20,6 +22,10 @@ def get_openai_client():
 
 def get_fireworks_client():
     return fireworks_client
+
+
+def get_anthropic_client():
+    return anthropic_client
 
 
 def assistant(content: str):
