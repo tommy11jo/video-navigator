@@ -54,7 +54,7 @@ def timestamp_to_seconds(timestamp: str) -> int:
     return hours * 3600 + minutes * 60 + seconds
 
 
-def get_video_metadata(video_id) -> VideoMetadata:
+async def get_video_metadata(video_id) -> VideoMetadata:
     try:
         youtube = get_youtube_client()
         request = youtube.videos().list(part="snippet,contentDetails", id=video_id)
@@ -101,39 +101,57 @@ def get_video_metadata(video_id) -> VideoMetadata:
     )
 
 
-async def rate_limit_exceeded(request: Request, supabase=Depends(get_supabase_client)):
-    return True
+async def user_rate_limit_exceeded(
+    request: Request, supabase=Depends(get_supabase_client)
+):
     # TODO: Make sure this work with cloudflare tunnel setup
-    # cf_connecting_ip = request.headers.get("cf-connecting-ip")
+    cf_connecting_ip = request.headers.get("cf-connecting-ip")
     # When running locally where the cf-connecting-ip is not set, assume rate limit is exceeded
-    # if not cf_connecting_ip:
-    #     return True
-    # result = (
-    #     supabase.table("rate_limits")
-    #     .select("count")
-    #     .eq("ip", cf_connecting_ip)
-    #     .execute()
-    # )
-    # count = result.data[0]["count"]
-    # return count >= RATE_LIMIT
+    if not cf_connecting_ip:
+        return True
+    result = (
+        supabase.table("rate_limits")
+        .select("count")
+        .eq("ip", cf_connecting_ip)
+        .execute()
+    )
+    count = result.data[0]["count"]
+    return count >= RATE_LIMIT
 
 
-async def incr_rate_limit(request: Request, supabase=Depends(get_supabase_client)):
-    return
-    # TODO
+async def incr_user_rate_limit(request: Request, supabase=Depends(get_supabase_client)):
     # Assumption: this header is guaranteed to exist when request comes from cloudflare tunnel
-    # cf_connecting_ip = request.headers.get("cf-connecting-ip")
-    # if not cf_connecting_ip:
-    #     return
-    # supabase.table("rate_limits").upsert(
-    #     {"ip": cf_connecting_ip, "count": 1},
-    #     on_conflict="ip",
-    #     update_columns=["count"],
-    #     count_column="count",
-    # ).execute()
+    cf_connecting_ip = request.headers.get("cf-connecting-ip")
+    if not cf_connecting_ip:
+        return
+    supabase.table("rate_limits").upsert(
+        {"ip": cf_connecting_ip, "count": 1},
+        on_conflict="ip",
+        update_columns=["count"],
+        count_column="count",
+    ).execute()
 
 
-def get_claude_completion(messages, system_prompt, anthropic_client) -> str:
+async def check_and_update_api_usage(supabase, limit: int = 2):
+    response = supabase.table("api_usage").select("total_hits").eq("id", 1).execute()
+
+    if response.data:
+        total_hits = response.data[0]["total_hits"]
+
+        if total_hits >= limit:
+            return False
+
+        total_hits += 1
+        supabase.table("api_usage").update({"total_hits": total_hits}).eq(
+            "id", 1
+        ).execute()
+    else:
+        supabase.table("api_usage").insert({"id": 1, "total_hits": 1}).execute()
+
+    return True
+
+
+async def get_claude_completion(messages, system_prompt, anthropic_client) -> str:
     try:
         completion = anthropic_client.messages.create(
             model="claude-3-5-sonnet-20240620",

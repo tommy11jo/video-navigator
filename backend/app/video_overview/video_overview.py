@@ -18,11 +18,12 @@ from typing import List, Optional
 from .video_overview_deps import get_supabase_client
 from fastapi import HTTPException
 from .video_overview_services import (
+    check_and_update_api_usage,
     get_claude_completion,
     get_transcript,
     get_video_metadata,
-    incr_rate_limit,
-    rate_limit_exceeded,
+    incr_user_rate_limit,
+    user_rate_limit_exceeded,
 )
 from .video_overview_deps import get_logger
 
@@ -160,16 +161,24 @@ async def generate_video_overview(
     if existing_overview:
         return existing_overview
 
-    if await rate_limit_exceeded(request, supabase):
-        # TODO: allow user to use their token in this case
+    user_api_limit_reached = await user_rate_limit_exceeded(request, supabase)
+    if user_api_limit_reached and not user_api_key:
+        raise HTTPException(
+            status_code=429,
+            detail="Free tier quota exceeded. Please use your API key to continue.",
+        )
+    api_limit_reached = await check_and_update_api_usage(supabase)
+    if api_limit_reached:
         if not user_api_key:
             raise HTTPException(
                 status_code=429,
-                detail="Free tier quota exceeded. Please use your API key to continue.",
+                detail="Total API quota exceeded. This got more use than I expected!",
             )
-        anthropic_client = get_anthropic_client(user_api_key)
+        else:
+            anthropic_client = get_anthropic_client(user_api_key)
     else:
         anthropic_client = get_anthropic_client()
+
     logger.info(f"Generate new video overview for video_id: {video_id}")
 
     transcript = await get_transcript(video_id)
@@ -180,7 +189,7 @@ async def generate_video_overview(
         )
     transcript_text = get_timestamped_transcript_text(transcript)
 
-    video_metadata = get_video_metadata(video_id)
+    video_metadata = await get_video_metadata(video_id)
     chapters = [data.title for data in video_metadata.chapters]
     if testing:
         chapters = chapters[:chapter_max_range]
@@ -201,7 +210,7 @@ async def generate_video_overview(
         assistant("Here is the JSON overview:\n{"),
     ]
     system_prompt = get_system_prompt(existing_chapters=chapters)
-    content = get_claude_completion(messages, system_prompt, anthropic_client)
+    content = await get_claude_completion(messages, system_prompt, anthropic_client)
 
     result = "{" + content
 
@@ -248,7 +257,7 @@ async def generate_video_overview(
                 "overview": video_overview_dict,
             }
         ).execute()
-        await incr_rate_limit(request, supabase)
+        await incr_user_rate_limit(request, supabase)
         logger.info(f"Video overview saved for video_id: {video_id}")
     except Exception as e:
         logger.error(f"Error saving video overview: {str(e)}")
@@ -294,5 +303,5 @@ async def get_transcript_text_by_video_id(video_id: str):
 # used for testing
 @router.get("/get-video-metadata/{video_id}")
 async def get_video_metadata_by_video_id(video_id: str):
-    metadata = get_video_metadata(video_id)
+    metadata = await get_video_metadata(video_id)
     return metadata

@@ -98,6 +98,10 @@ const HomePage = () => {
       videoId: "tQt_KOAWiVQ",
       title: "Simple Rules for Better Sandwiches | Techniquely with Lan Lam",
     },
+    {
+      videoId: "YzcAFXNI-S8",
+      title: "The Invention of Lora by Lora Creator Edward Hu @ AGI House",
+    },
   ]
 
   const navigate = useNavigate()
@@ -226,7 +230,7 @@ const HomePage = () => {
         <div className="mt-8 max-w-md mx-auto">
           <ExampleList title="Examples:" items={staticExamples} />
           <br />
-          <ExampleList title="Recent Overviews:" items={recentOverviews} />
+          <ExampleList title="Your Overviews:" items={recentOverviews} />
           <span className="text-gray-400 text-sm">
             Note: Your list of generated overviews is in local storage. It can
             be lost easily.

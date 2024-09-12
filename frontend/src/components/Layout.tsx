@@ -2,7 +2,7 @@ import { Outlet, Link } from "react-router-dom"
 
 const Layout = () => {
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-screen bg-black text-white p-2 pb-20">
       <div className="container mx-auto px-1 pt-4">
         <div className="flex justify-between items-center mb-4">
           <div className="flex flex-col">
