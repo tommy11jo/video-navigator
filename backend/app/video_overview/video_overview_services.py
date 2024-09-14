@@ -4,12 +4,16 @@ from anthropic import (
     APITimeoutError,
     RateLimitError,
 )
-from youtube_transcript_api import YouTubeTranscriptApi
 import re
+
+from .proxy_manager import ProxyManager
+
 from .video_overview_deps import get_youtube_client
-from .video_overview_schemas import Transcript, VideoMetadata, Moment
+from .video_overview_schemas import Moment, Transcript, VideoMetadata
 from .video_overview_deps import get_logger, get_supabase_client
 from fastapi import Depends, HTTPException, Request
+from youtube_transcript_api import YouTubeTranscriptApi
+import os
 
 logger = get_logger()
 RATE_LIMIT = 2
@@ -26,10 +30,21 @@ def normalize_spacing(text: str) -> str:
 
 
 async def get_transcript(video_id: str) -> Transcript | None:
+    # youtube transcript api works locally but not in cloud envs
+    # https://github.com/jdepoix/youtube-transcript-api/issues/303
     try:
-        transcript = YouTubeTranscriptApi.get_transcript(video_id)
+        if os.getenv("ENVIRONMENT") == "prod":
+            proxy_manager = ProxyManager()
+            proxies_dict = proxy_manager.get_proxy()
+            transcript = YouTubeTranscriptApi.get_transcript(
+                video_id, proxies=proxies_dict
+            )
+        else:
+            transcript = YouTubeTranscriptApi.get_transcript(video_id)
+
         if not transcript:
             return None
+
         return Transcript(
             moments=[
                 Moment(
@@ -42,10 +57,9 @@ async def get_transcript(video_id: str) -> Transcript | None:
         )
     except Exception as e:
         logger.error(f"Error fetching transcript for video {video_id}: {str(e)}")
-        truncated_error = str(e)[:100] + "..." if len(str(e)) > 100 else str(e)
         raise HTTPException(
-            status_code=422,
-            detail=f"Failed to fetch transcript for video {video_id}: {truncated_error}",
+            status_code=500,
+            detail=f"Error fetching transcript for video {video_id}: {str(e)}",
         )
 
 

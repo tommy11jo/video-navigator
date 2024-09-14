@@ -7,13 +7,13 @@ import { useUser } from "./UserContext"
 import ExampleList from "./ExampleList"
 
 type APIKeyModalProps = {
+  updateApiKey: (apiKey: string) => void
   apiKey: string
-  setApiKey: (apiKey: string) => void
   isOpen: boolean
   setIsOpen: (isOpen: boolean) => void
 }
 const APIKeyModal = ({
-  setApiKey,
+  updateApiKey,
   apiKey,
   isOpen,
   setIsOpen,
@@ -27,7 +27,7 @@ const APIKeyModal = ({
   if (!isOpen) return null
 
   const handleSubmit = () => {
-    setApiKey(inputValue)
+    updateApiKey(inputValue)
     setIsOpen(false)
   }
 
@@ -60,7 +60,7 @@ const APIKeyModal = ({
   )
 }
 const HomePage = () => {
-  const { user, setApiKey } = useUser()
+  const { apiKey, updateApiKey } = useUser()
   const [videoUrl, setVideoUrl] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
@@ -131,7 +131,9 @@ const HomePage = () => {
       axios
         .post(
           `${import.meta.env.VITE_API_URL}/generate-overview/${videoId}`,
-          { user_api_key: user.apiKey },
+          {
+            user_api_key: apiKey,
+          },
           {
             headers: {
               "Content-Type": "application/json",
@@ -192,8 +194,8 @@ const HomePage = () => {
         </div>
         {isModalOpen && (
           <APIKeyModal
-            setApiKey={setApiKey}
-            apiKey={user.apiKey}
+            updateApiKey={updateApiKey}
+            apiKey={apiKey}
             isOpen={isModalOpen}
             setIsOpen={setIsModalOpen}
           />

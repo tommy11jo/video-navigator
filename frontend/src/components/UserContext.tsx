@@ -1,12 +1,8 @@
 import React, { createContext, useState, useContext, ReactNode } from "react"
 
-interface User {
-  apiKey: string
-}
-
 interface UserContextType {
-  user: User
-  setApiKey: (apiKey: string) => void
+  apiKey: string
+  updateApiKey: (apiKey: string) => void
 }
 
 const UserContext = createContext<UserContextType | undefined>(undefined)
@@ -14,17 +10,14 @@ const UserContext = createContext<UserContextType | undefined>(undefined)
 export const UserProvider: React.FC<{ children: ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User>(() => ({
-    apiKey: localStorage.getItem("apiKey") || "",
-  }))
-
-  const setApiKey = (apiKey: string) => {
-    setUser((prevUser) => ({ ...prevUser, apiKey }))
-    localStorage.setItem("apiKey", apiKey)
+  const [apiKey, setApiKey] = useState(localStorage.getItem("apiKey") || "")
+  const updateApiKey = (newApiKey: string) => {
+    setApiKey(newApiKey)
+    localStorage.setItem("apiKey", newApiKey)
   }
 
   return (
-    <UserContext.Provider value={{ user, setApiKey }}>
+    <UserContext.Provider value={{ apiKey, updateApiKey }}>
       {children}
     </UserContext.Provider>
   )

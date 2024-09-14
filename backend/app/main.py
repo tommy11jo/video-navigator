@@ -1,9 +1,10 @@
-# uvicorn app.main:app --reload
+# uvicorn app.main:app --reload --port 8080
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.video_overview import video_overview
 
 app = FastAPI()
+
 
 app.add_middleware(
     CORSMiddleware,
