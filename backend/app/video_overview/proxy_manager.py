@@ -7,6 +7,7 @@ import tempfile
 from tqdm import tqdm
 
 MAX_WORKERS = 20
+MAX_PROXIES = 50
 
 
 class ProxyManager:
@@ -52,7 +53,7 @@ class ProxyManager:
     def update_proxy_list(
         self,
         url="https://raw.githubusercontent.com/TheSpeedX/PROXY-List/master/http.txt",
-        max_proxies_to_test=500,
+        max_proxies_to_test=MAX_PROXIES,
     ):
         try:
             response = requests.get(url)
