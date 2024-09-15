@@ -15,6 +15,7 @@ from .video_overview_schemas import (
     VideoOverviewFunctionCallResponse,
 )
 from typing import List, Optional
+import logging
 from .video_overview_deps import get_supabase_client
 from fastapi import HTTPException
 from .video_overview_services import (
@@ -25,10 +26,8 @@ from .video_overview_services import (
     incr_user_rate_limit,
     user_rate_limit_exceeded,
 )
-from .video_overview_deps import get_logger
 
-logger = get_logger()
-
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 testing = False

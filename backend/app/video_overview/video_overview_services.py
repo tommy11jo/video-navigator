@@ -1,3 +1,4 @@
+import os
 from anthropic import (
     APIConnectionError,
     APIStatusError,
@@ -6,16 +7,17 @@ from anthropic import (
 )
 import re
 
-from .proxy_manager import ProxyManager
+from ..config import is_prod
 
 from .video_overview_deps import get_youtube_client
 from .video_overview_schemas import Moment, Transcript, VideoMetadata
-from .video_overview_deps import get_logger, get_supabase_client
+from .video_overview_deps import get_supabase_client
 from fastapi import Depends, HTTPException, Request
 from youtube_transcript_api import YouTubeTranscriptApi
-import os
+import logging
 
-logger = get_logger()
+logger = logging.getLogger(__name__)
+
 RATE_LIMIT = 2
 
 
@@ -33,12 +35,12 @@ async def get_transcript(video_id: str) -> Transcript | None:
     # youtube transcript api works locally but not in cloud envs
     # https://github.com/jdepoix/youtube-transcript-api/issues/303
     try:
-        if os.getenv("ENVIRONMENT") == "prod":
-            proxy_manager = ProxyManager()
-            proxies_dict = proxy_manager.get_proxy()
-            transcript = YouTubeTranscriptApi.get_transcript(
-                video_id, proxies=proxies_dict
-            )
+        if is_prod():
+            username = os.getenv("PROXY_USERNAME")
+            password = os.getenv("PROXY_PASSWORD")
+            proxy = f"http://{username}:{password}@gate.smartproxy.com:10001"
+            transcript = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxy)
+
         else:
             transcript = YouTubeTranscriptApi.get_transcript(video_id)
 
