@@ -9,7 +9,7 @@ RUN pip install poetry && \
     poetry install --no-interaction --no-ansi
 
 COPY ./app ./app
-COPY .env .env
+COPY .env.production .env.production
 
 
 

@@ -285,22 +285,27 @@ async def get_video_overview(
         )
 
 
-@router.get("/get-transcript/{video_id}")
-async def get_transcript_by_video_id(video_id: str):
-    transcript = await get_transcript(video_id)
-    return transcript
+# @router.get("/get-transcript/{video_id}")
+# async def get_transcript_by_video_id(video_id: str):
+#     transcript = await get_transcript(video_id)
+#     return transcript
 
 
 # used for testing
-@router.get("/get-transcript-text/{video_id}")
-async def get_transcript_text_by_video_id(video_id: str):
-    transcript = await get_transcript(video_id)
-    transcript_text = " ".join([i.text for i in transcript.moments])
-    return transcript_text
+# @router.get("/get-transcript-text/{video_id}")
+# async def get_transcript_text_by_video_id(video_id: str):
+#     transcript = await get_transcript(video_id)
+#     transcript_text = " ".join([i.text for i in transcript.moments])
+#     return transcript_text
 
 
 # used for testing
-@router.get("/get-video-metadata/{video_id}")
-async def get_video_metadata_by_video_id(video_id: str):
-    metadata = await get_video_metadata(video_id)
-    return metadata
+# @router.get("/get-video-metadata/{video_id}")
+# async def get_video_metadata_by_video_id(video_id: str):
+#     metadata = await get_video_metadata(video_id)
+#     return metadata
+
+# used for testing
+@router.get("/rate-limit-exceeded")
+async def rate_limit_exceeded(request: Request, supabase=Depends(get_supabase_client)):
+    return await user_rate_limit_exceeded(request, supabase)

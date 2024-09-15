@@ -38,7 +38,8 @@ async def get_transcript(video_id: str) -> Transcript | None:
         if is_prod():
             username = os.getenv("PROXY_USERNAME")
             password = os.getenv("PROXY_PASSWORD")
-            proxy = f"http://{username}:{password}@gate.smartproxy.com:10001"
+            proxy_url = f"http://{username}:{password}@gate.smartproxy.com:10001"
+            proxy = {"http": proxy_url, "https": proxy_url}
             transcript = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxy)
 
         else:
@@ -131,8 +132,11 @@ async def user_rate_limit_exceeded(
         .eq("ip", cf_connecting_ip)
         .execute()
     )
+    if not result.data:
+        return False
     count = result.data[0]["count"]
     return count >= RATE_LIMIT
+
 
 
 async def incr_user_rate_limit(request: Request, supabase=Depends(get_supabase_client)):

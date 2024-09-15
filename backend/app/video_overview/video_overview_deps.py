@@ -29,9 +29,8 @@ def get_supabase_client():
 
 
 def get_youtube_client():
-    # yt_api_key = os.getenv("YOUTUBE_API_KEY")
-    # return build("youtube", "v3", developerKey=yt_api_key)
-    return build("youtube", "v3")
+    yt_api_key = os.getenv("YOUTUBE_API_KEY")
+    return build("youtube", "v3", developerKey=yt_api_key)
 
 
 def assistant(content: str):
