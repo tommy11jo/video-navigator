@@ -18,8 +18,11 @@ def get_fireworks_client():
     return fireworks_client
 
 
-def get_anthropic_client(api_key: Optional[str] = None):
-    return anthropic.Anthropic(api_key=api_key or os.getenv("ANTROPIC_API_KEY"))
+def get_anthropic_client(user_api_key_only: bool = True, api_key: Optional[str] = None):
+    if user_api_key_only:
+        return anthropic.Anthropic(api_key=api_key)
+    else:
+        return anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 
 
 def get_supabase_client():

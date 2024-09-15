@@ -19,7 +19,8 @@ import logging
 from .video_overview_deps import get_supabase_client
 from fastapi import HTTPException
 from .video_overview_services import (
-    check_and_update_api_usage,
+    net_api_limit_reached,
+    incr_api_usage,
     get_claude_completion,
     get_transcript,
     get_video_metadata,
@@ -161,24 +162,35 @@ async def generate_video_overview(
         return existing_overview
 
     user_api_limit_reached = await user_rate_limit_exceeded(request, supabase)
-    if user_api_limit_reached and not user_api_key:
-        raise HTTPException(
-            status_code=429,
-            detail="Free tier quota exceeded. Please use your API key to continue.",
-        )
-    api_limit_reached = await check_and_update_api_usage(supabase)
-    if api_limit_reached:
+    if user_api_limit_reached:
         if not user_api_key:
             raise HTTPException(
                 status_code=429,
-                detail="Total API quota exceeded. This got more use than I expected!",
+                detail="Free tier quota exceeded. Please use your API key to continue.",
             )
         else:
-            anthropic_client = get_anthropic_client(user_api_key)
+            anthropic_client = get_anthropic_client(True, user_api_key)
+ 
     else:
-        anthropic_client = get_anthropic_client()
+        api_limit_reached = await net_api_limit_reached(supabase)
+        if not api_limit_reached:
+            anthropic_client = get_anthropic_client(False)
+            await incr_user_rate_limit(request, supabase)
+        else:
+            if not user_api_key:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Total API limit reached right now. Please use your API key.",
+                )
+            else:
+                anthropic_client = get_anthropic_client(True, user_api_key)
 
     logger.info(f"Generate new video overview for video_id: {video_id}")
+    await incr_api_usage(supabase)
+    # Note: for now I increment usage limits before even testing if the transcript is available
+    # to prevent an attacker from repeatedly hitting the transcript API
+    # TODO: This is unideal
+
 
     transcript = await get_transcript(video_id)
     if not transcript:
@@ -256,7 +268,6 @@ async def generate_video_overview(
                 "overview": video_overview_dict,
             }
         ).execute()
-        await incr_user_rate_limit(request, supabase)
         logger.info(f"Video overview saved for video_id: {video_id}")
     except Exception as e:
         logger.error(f"Error saving video overview: {str(e)}")

@@ -18,8 +18,9 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-RATE_LIMIT = 2
 
+TOTAL_API_USAGE_LIMIT = 100
+USER_RATE_LIMIT = 10
 
 def normalize_spacing(text: str) -> str:
     # Remove leading and trailing whitespace
@@ -135,7 +136,7 @@ async def user_rate_limit_exceeded(
     if not result.data:
         return False
     count = result.data[0]["count"]
-    return count >= RATE_LIMIT
+    return count >= USER_RATE_LIMIT
 
 
 
@@ -143,32 +144,24 @@ async def incr_user_rate_limit(request: Request, supabase=Depends(get_supabase_c
     # Assumption: this header is guaranteed to exist when request comes from cloudflare tunnel
     cf_connecting_ip = request.headers.get("cf-connecting-ip")
     if not cf_connecting_ip:
-        return
-    supabase.table("rate_limits").upsert(
-        {"ip": cf_connecting_ip, "count": 1},
-        on_conflict="ip",
-        update_columns=["count"],
-        count_column="count",
-    ).execute()
+        if is_prod():
+            raise HTTPException(status_code=500, detail="Unexpected error: no cf-connecting-ip")
+        else:
+            return
+    result = supabase.table("rate_limits").select("count").eq("ip", cf_connecting_ip).execute()
+    new_count = result.data[0]['count'] + 1
+    supabase.table("rate_limits").update({"count": new_count}).eq("ip", cf_connecting_ip).execute()
 
-
-async def check_and_update_api_usage(supabase, limit: int = 2):
+async def net_api_limit_reached(supabase, limit: int = TOTAL_API_USAGE_LIMIT):
     response = supabase.table("api_usage").select("total_hits").eq("id", 1).execute()
+    return response.data[0]["total_hits"] >= limit
 
-    if response.data:
-        total_hits = response.data[0]["total_hits"]
-
-        if total_hits >= limit:
-            return False
-
-        total_hits += 1
-        supabase.table("api_usage").update({"total_hits": total_hits}).eq(
-            "id", 1
-        ).execute()
-    else:
-        supabase.table("api_usage").insert({"id": 1, "total_hits": 1}).execute()
-
-    return True
+async def incr_api_usage(supabase):
+    total_hits = supabase.table("api_usage").select("total_hits").eq("id", 1).execute()
+    total_hits = total_hits.data[0]["total_hits"]
+    supabase.table("api_usage").update({"total_hits": total_hits + 1}).eq(
+        "id", 1
+    ).execute()
 
 
 async def get_claude_completion(messages, system_prompt, anthropic_client) -> str:
@@ -186,9 +179,6 @@ async def get_claude_completion(messages, system_prompt, anthropic_client) -> st
         raise HTTPException(
             status_code=429, detail="Rate limit exceeded. Please try again later."
         )
-    except (APIStatusError, APITimeoutError, APIConnectionError) as e:
-        logger.error(f"API error: {str(e)}")
-        raise HTTPException(status_code=e.status_code, detail=f"API error: {str(e)}")
     except Exception as e:
         logger.error(f"Unexpected error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Unexpected error: {str(e)}")
