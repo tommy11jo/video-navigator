@@ -99,8 +99,9 @@ const HomePage = () => {
       title: "Simple Rules for Better Sandwiches | Techniquely with Lan Lam",
     },
     {
-      videoId: "YzcAFXNI-S8",
-      title: "The Invention of Lora by Lora Creator Edward Hu @ AGI House",
+      videoId: "0nA5QG3087g",
+      title:
+        "Beyond the Basics of Retrieval for Augmenting Generation (w/ Ben Clavié)",
     },
   ]
 
