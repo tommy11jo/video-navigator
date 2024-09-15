@@ -1,10 +1,5 @@
 import os
-from anthropic import (
-    APIConnectionError,
-    APIStatusError,
-    APITimeoutError,
-    RateLimitError,
-)
+from anthropic import RateLimitError
 import re
 
 from ..config import is_prod
@@ -21,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 TOTAL_API_USAGE_LIMIT = 100
 USER_RATE_LIMIT = 10
+
 
 def normalize_spacing(text: str) -> str:
     # Remove leading and trailing whitespace
@@ -122,11 +118,15 @@ async def get_video_metadata(video_id) -> VideoMetadata:
 async def user_rate_limit_exceeded(
     request: Request, supabase=Depends(get_supabase_client)
 ):
-    # TODO: Make sure this work with cloudflare tunnel setup
     cf_connecting_ip = request.headers.get("cf-connecting-ip")
-    # When running locally where the cf-connecting-ip is not set, assume rate limit is exceeded
     if not cf_connecting_ip:
-        return True
+        if is_prod():
+            raise HTTPException(
+                status_code=500, detail="Unexpected error: no cf-connecting-ip"
+            )
+        else:
+            # When running locally, assume rate limit is exceeded
+            return True
     result = (
         supabase.table("rate_limits")
         .select("count")
@@ -139,22 +139,32 @@ async def user_rate_limit_exceeded(
     return count >= USER_RATE_LIMIT
 
 
-
 async def incr_user_rate_limit(request: Request, supabase=Depends(get_supabase_client)):
     # Assumption: this header is guaranteed to exist when request comes from cloudflare tunnel
     cf_connecting_ip = request.headers.get("cf-connecting-ip")
     if not cf_connecting_ip:
         if is_prod():
-            raise HTTPException(status_code=500, detail="Unexpected error: no cf-connecting-ip")
+            raise HTTPException(
+                status_code=500, detail="Unexpected error: no cf-connecting-ip"
+            )
         else:
             return
-    result = supabase.table("rate_limits").select("count").eq("ip", cf_connecting_ip).execute()
-    new_count = result.data[0]['count'] + 1
-    supabase.table("rate_limits").update({"count": new_count}).eq("ip", cf_connecting_ip).execute()
+    result = (
+        supabase.table("rate_limits")
+        .select("count")
+        .eq("ip", cf_connecting_ip)
+        .execute()
+    )
+    new_count = result.data[0]["count"] + 1
+    supabase.table("rate_limits").update({"count": new_count}).eq(
+        "ip", cf_connecting_ip
+    ).execute()
+
 
 async def net_api_limit_reached(supabase, limit: int = TOTAL_API_USAGE_LIMIT):
     response = supabase.table("api_usage").select("total_hits").eq("id", 1).execute()
     return response.data[0]["total_hits"] >= limit
+
 
 async def incr_api_usage(supabase):
     total_hits = supabase.table("api_usage").select("total_hits").eq("id", 1).execute()

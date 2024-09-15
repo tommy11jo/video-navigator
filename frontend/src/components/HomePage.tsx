@@ -184,12 +184,13 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="container mx-auto px-1 pt-8">
-        <div className="flex justify-end max-w-md mx-auto p-2">
+        <div className="flex justify-between max-w-md mx-auto p-2">
+          <span className="text-sm text-white">Free queries are limited!</span>
           <button
-            className="text-sm text-gray-400 hover:text-white"
+            className="text-sm text-gray-400 hover:text-white underline"
             onClick={() => setIsModalOpen(true)}
           >
-            Set API Key
+            Set Anthropic API Key
           </button>
         </div>
         {isModalOpen && (
