@@ -33,7 +33,7 @@ const APIKeyModal = ({
 
   return (
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-      <div className="bg-black p-4 rounded-lg shadow-lg border border-gray-700">
+      <div className="flex flex-col max-w-md bg-black p-4 rounded-lg shadow-lg border border-gray-700">
         <span className="text-white">Set Anthropic API Key</span>
         <p className="text-sm text-gray-400 mt-1 mb-2">
           It's advised to set a usage limit on your key. The key is stored in

@@ -23,14 +23,23 @@ const Layout = () => {
               </p>
             </div>
           </div>
-          <a
-            href="https://github.com/tommy11jo/video-navigator"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-white hover:text-gray-300 underline"
-          >
-            Github
-          </a>
+          <div className="flex flex-row gap-4">
+            <a
+              href="https://github.com/tommy11jo/video-navigator"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-white hover:text-gray-300 underline"
+            >
+              Github
+            </a>
+
+            <Link
+              to="/about"
+              className="text-white hover:text-gray-300 underline"
+            >
+              About
+            </Link>
+          </div>
         </div>
         <hr className="border-t border-gray-700 w-full mb-8" />
         <Outlet />

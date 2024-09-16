@@ -4,6 +4,8 @@ import HomePage from "./components/HomePage"
 import Layout from "./components/Layout"
 import ErrorPage from "./components/ErrorPage"
 import { UserProvider } from "./components/UserContext"
+import AboutPage from "./components/About"
+import "./styles/main.css"
 
 const router = createBrowserRouter([
   {
@@ -18,6 +20,10 @@ const router = createBrowserRouter([
       {
         path: "video/:videoId",
         element: <VideoPage />,
+      },
+      {
+        path: "about",
+        element: <AboutPage />,
       },
     ],
   },
