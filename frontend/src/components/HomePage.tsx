@@ -35,6 +35,10 @@ const APIKeyModal = ({
     <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
       <div className="bg-black p-4 rounded-lg shadow-lg border border-gray-700">
         <span className="text-white">Set Anthropic API Key</span>
+        <p className="text-sm text-gray-400 mt-1 mb-2">
+          It's advised to set a usage limit on your key. The key is stored in
+          local storage and passed to my backend over HTTPS.
+        </p>
         <input
           type="text"
           value={inputValue}
@@ -235,10 +239,12 @@ const HomePage = () => {
           <ExampleList title="Examples:" items={staticExamples} />
           <br />
           <ExampleList title="Your Overviews:" items={recentOverviews} />
-          <span className="text-gray-400 text-sm">
-            Note: Your list of generated overviews is in local storage. It can
-            be lost easily.
-          </span>
+          {recentOverviews.length > 0 && (
+            <span className="text-gray-400 text-sm">
+              Note: Your list of generated overviews is in local storage. It can
+              be lost easily.
+            </span>
+          )}
         </div>
       </div>
     </div>
