@@ -1,7 +1,7 @@
 const AboutPage = () => {
   return (
-    <div className="flex flex-col items-center h-screen">
-      <div className="flex flex-col max-w-2xl items-left h-screen">
+    <div className="min-h-full bg-black text-white">
+      <div className="container mx-auto px-2">
         <p>
           This project demonstrates a simple but new video watching experience.
           It's useful for people trying to learn, like a student watching a
@@ -15,7 +15,7 @@ const AboutPage = () => {
         </p>
         <br />
         <p>
-          Right now, this is a demo, not a standalone product. The vision is for
+          Right now, this is a demo, not a standalone product. My hope is for
           platforms like YouTube to incorporate a similar video interface,
           accessible via a single click or toggle. (YouTube, will you implement
           this? Dated: 9/15/24)

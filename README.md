@@ -1,8 +1,8 @@
 ## Video Navigator
 
-**Problem**: Videos are hard to skim, navigate, and quickly understand as a whole.
-**Solution**: Navigate a video using an AI-generated overview of its content.
-Try it [here](https://video-navigator.vercel.app)!
+**Problem**: Videos are hard to skim, navigate, and quickly understand as a whole.  
+**Solution**: Navigate a video using an AI-generated overview of its content.  
+Try it [here](https://video-navigator.vercel.app)!  
 Read more on the [about page](https://video-navigator.vercel.app/video/uI7J3II59lc).
 
 ![Presidential Debate Screenshot](./images/pres-debate-screenshot.png)

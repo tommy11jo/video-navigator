@@ -81,6 +81,10 @@ const HomePage = () => {
       title: "Hypercard in the World, May 2016",
     },
     {
+      videoId: "EGqwXt90ZqA",
+      title: "Bret Victor - Inventing on Principle",
+    },
+    {
       videoId: "C27RVio2rOs",
       title: "Michael Seibel - Building Product",
     },
@@ -187,7 +191,7 @@ const HomePage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black text-white">
+    <div className="min-h-full bg-black text-white">
       <div className="container mx-auto px-1 pt-8">
         <div className="flex justify-between max-w-md mx-auto p-2">
           <span className="text-sm text-white">Free queries are limited!</span>
