@@ -121,6 +121,11 @@ const VideoPage = () => {
     return minutes * 60 + seconds
   }
 
+  const handleTimestampClick = (timestamp: string) => {
+    const timeInSeconds = parseTimestamp(timestamp)
+    setSeekTimeInS(timeInSeconds)
+  }
+
   if (!videoOverview || !videoOverview.chapters)
     return <div>Loading video overview...</div>
   return (
@@ -258,7 +263,10 @@ const VideoPage = () => {
                 <div className="space-y-4">
                   {groupTranscriptEntries(transcript).map((group, index) => (
                     <div key={index} className="flex gap-3">
-                      <span className="text-blue-accent font-mono text-sm shrink-0">
+                      <span 
+                        className="text-blue-accent font-mono text-sm shrink-0 cursor-pointer hover:underline"
+                        onClick={() => handleTimestampClick(group.timestamp)}
+                      >
                         {group.timestamp}
                       </span>
                       <span className="text-white text-sm leading-relaxed">
