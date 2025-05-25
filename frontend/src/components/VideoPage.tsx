@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react"
+import { useState, useRef } from "react"
 import YouTubeEmbed from "./VideoEmbed"
 import { useParams } from "react-router-dom"
 import axios from "axios"
@@ -36,36 +36,123 @@ export interface ChatMessage {
   content: string
   timestamp: Date
 }
-const VideoPage = () => {
-  const { videoId } = useParams<{ videoId: string }>()
-  const { apiKey } = useUser()
+// Container components
+interface OverviewContainerProps {
+  videoId: string
+  currentTimeInS: number
+  onKeyPointClick: (time: number) => void
+}
 
-  const [currentTimeInS, setCurrentTimeInS] = useState(0)
-  const [seekTimeInS, setSeekTimeInS] = useState(-1)
+const OverviewContainer = ({ videoId, currentTimeInS, onKeyPointClick }: OverviewContainerProps) => {
   const [videoOverview, setVideoOverview] = useState<VideoOverview | null>(null)
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1)
-  const [activeTab, setActiveTab] = useState<
-    "overview" | "transcript" | "chat"
-  >("overview")
-  const [transcript, setTranscript] = useState<TranscriptEntry[] | null>(null)
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
-  const [currentQuestion, setCurrentQuestion] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-  const chatInputRef = useRef<HTMLTextAreaElement>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
 
-  useEffect(() => {
-    if (!videoId) return
+  if (!isLoaded) {
     const fetchVideoData = async () => {
-      const response = await axios.get<VideoOverview>(
-        `${import.meta.env.VITE_API_URL}/get-overview/${videoId}`
-      )
-      setVideoOverview(response.data)
+      try {
+        const response = await axios.get<VideoOverview>(
+          `${import.meta.env.VITE_API_URL}/get-overview/${videoId}`
+        )
+        setVideoOverview(response.data)
+        setIsLoaded(true)
+      } catch (error) {
+        console.error("Error fetching video overview:", error)
+        setIsLoaded(true)
+      }
     }
     fetchVideoData()
-  }, [videoId])
+    return <div className="p-4 text-gray-400 text-center">Loading video overview...</div>
+  }
 
-  useEffect(() => {
-    if (!videoId || activeTab !== "transcript") return
+  if (!videoOverview || !videoOverview.chapters) {
+    return <div className="p-4 text-gray-400 text-center">Failed to load video overview</div>
+  }
+
+  // Update current chapter based on time
+  const chapterIndex = videoOverview.chapters.findIndex((chapter, index) => {
+    const currentChapterStart = chapter.key_points[0]?.time ?? 0
+    const nextChapterStart =
+      videoOverview.chapters[index + 1]?.key_points[0]?.time ?? Infinity
+    return (
+      currentTimeInS >= currentChapterStart &&
+      currentTimeInS < nextChapterStart
+    )
+  })
+  const newChapterIndex = chapterIndex !== -1 ? chapterIndex : videoOverview.chapters.length - 1
+  if (newChapterIndex !== currentChapterIndex) {
+    setCurrentChapterIndex(newChapterIndex)
+  }
+
+  return (
+    <div>
+      {videoOverview.chapters.map((chapter: Chapter, index: number) => (
+        <div
+          key={index}
+          className={`text-sm ${
+            index === currentChapterIndex
+              ? "bg-gray-800 rounded-lg"
+              : ""
+          }`}
+        >
+          <div className="p-1">
+            <h3 className="text-lg font-semibold mb-2 flex items-center">
+              <span
+                className="cursor-pointer mr-2 text-blue-accent hover:underline"
+                onClick={() =>
+                  onKeyPointClick(chapter.key_points[0].time)
+                }
+              >
+                {chapter.title}
+              </span>
+            </h3>
+            <div className="flex flex-wrap gap-2 mt-1">
+              {chapter.associations.map(
+                (association: string, associationIndex: number) => (
+                  <span
+                    key={associationIndex}
+                    className="px-2 py-1 bg-gray-700 text-white text-xs rounded-full"
+                  >
+                    {association}
+                  </span>
+                )
+              )}
+            </div>
+            <div className="m-2">
+              <ul className="list-disc pl-5">
+                {chapter.key_points.map(
+                  (keyPoint: KeyPoint, pointIndex: number) => (
+                    <li key={pointIndex}>
+                      <span
+                        className="cursor-pointer text-gray-300 hover:text-white hover:underline"
+                        onClick={() =>
+                          onKeyPointClick(keyPoint.time)
+                        }
+                      >
+                        {keyPoint.text}
+                      </span>
+                    </li>
+                  )
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+interface TranscriptContainerProps {
+  videoId: string
+  onTimestampClick: (timestamp: string) => void
+}
+
+const TranscriptContainer = ({ videoId, onTimestampClick }: TranscriptContainerProps) => {
+  const [transcript, setTranscript] = useState<TranscriptEntry[] | null>(null)
+  const [isLoaded, setIsLoaded] = useState(false)
+
+  if (!isLoaded) {
     const fetchTranscript = async () => {
       try {
         const response = await axios.get<TranscriptEntry[]>(
@@ -75,37 +162,16 @@ const VideoPage = () => {
       } catch (error) {
         console.error("Error fetching transcript:", error)
         setTranscript([])
+      } finally {
+        setIsLoaded(true)
       }
     }
-    if (!transcript) {
-      fetchTranscript()
-    }
-  }, [videoId, activeTab, transcript])
-
-  useEffect(() => {
-    if (activeTab === "chat") {
-      chatInputRef.current?.focus()
-    }
-  }, [activeTab])
-
-  useEffect(() => {
-    if (!videoOverview) return
-    const chapterIndex = videoOverview.chapters.findIndex((chapter, index) => {
-      const currentChapterStart = chapter.key_points[0]?.time ?? 0
-      const nextChapterStart =
-        videoOverview.chapters[index + 1]?.key_points[0]?.time ?? Infinity
-      return (
-        currentTimeInS >= currentChapterStart &&
-        currentTimeInS < nextChapterStart
-      )
-    })
-    setCurrentChapterIndex(
-      chapterIndex !== -1 ? chapterIndex : videoOverview.chapters.length - 1
+    fetchTranscript()
+    return (
+      <div className="p-4 text-gray-400 text-center">
+        Loading transcript...
+      </div>
     )
-  }, [currentTimeInS, videoOverview])
-
-  const handleKeyPointClick = (time: number) => {
-    setSeekTimeInS(time)
   }
 
   const groupTranscriptEntries = (entries: TranscriptEntry[]) => {
@@ -119,7 +185,6 @@ const VideoPage = () => {
 
     for (let i = 1; i < entries.length; i++) {
       const entry = entries[i]
-      // Group entries that are within 10 seconds of each other
       const currentTime = parseTimestamp(currentGroup.timestamp)
       const entryTime = parseTimestamp(entry.timestamp)
 
@@ -142,9 +207,48 @@ const VideoPage = () => {
     return minutes * 60 + seconds
   }
 
-  const handleTimestampClick = (timestamp: string) => {
-    const timeInSeconds = parseTimestamp(timestamp)
-    setSeekTimeInS(timeInSeconds)
+  return (
+    <div className="p-4">
+      {transcript === null || transcript.length === 0 ? (
+        <div className="text-gray-400 text-center">
+          Transcript not available for this video
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {groupTranscriptEntries(transcript).map((group, index) => (
+            <div key={index} className="flex gap-3">
+              <span
+                className="text-blue-accent font-mono text-sm shrink-0 cursor-pointer hover:underline"
+                onClick={() => onTimestampClick(group.timestamp)}
+              >
+                {group.timestamp}
+              </span>
+              <span className="text-white text-sm leading-relaxed">
+                {group.content}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+interface ChatContainerProps {
+  videoId: string
+  apiKey: string | null
+  onCitationClick: (seconds: number) => void
+}
+
+const ChatContainer = ({ videoId, apiKey, onCitationClick }: ChatContainerProps) => {
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [currentQuestion, setCurrentQuestion] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const chatInputRef = useRef<HTMLTextAreaElement>(null)
+
+  // Focus input when component mounts
+  if (chatInputRef.current && document.activeElement !== chatInputRef.current) {
+    chatInputRef.current.focus()
   }
 
   const handleSendMessage = async () => {
@@ -157,7 +261,6 @@ const VideoPage = () => {
       timestamp: new Date(),
     }
 
-    // Clear previous messages and add new user message
     setChatMessages([userMessage])
     setCurrentQuestion("")
     setIsLoading(true)
@@ -201,10 +304,6 @@ const VideoPage = () => {
     }
   }
 
-  const handleCitationClick = (seconds: number) => {
-    setSeekTimeInS(seconds)
-  }
-
   const parseCitations = (text: string) => {
     const citationRegex = /\[CITE:(\d+)(?:-\d+)?\]/g
     const parts = []
@@ -213,7 +312,6 @@ const VideoPage = () => {
     let match
 
     while ((match = citationRegex.exec(text)) !== null) {
-      // Add text before citation
       if (match.index > lastIndex) {
         parts.push({
           type: 'text',
@@ -221,7 +319,6 @@ const VideoPage = () => {
         })
       }
 
-      // Add citation - use first timestamp if range is provided
       parts.push({
         type: 'citation',
         content: citationCounter.toString(),
@@ -232,7 +329,6 @@ const VideoPage = () => {
       lastIndex = match.index + match[0].length
     }
 
-    // Add remaining text
     if (lastIndex < text.length) {
       parts.push({
         type: 'text',
@@ -243,8 +339,137 @@ const VideoPage = () => {
     return parts
   }
 
-  if (!videoOverview || !videoOverview.chapters)
-    return <div>Loading video overview...</div>
+  return (
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-auto p-4">
+        {chatMessages.length === 0 ? (
+          <div className="text-gray-400 text-center">
+            Ask a question about this video
+          </div>
+        ) : (
+          <>
+            {chatMessages.filter(msg => msg.type === 'user').map((message) => (
+              <div key={message.id} className="mb-6">
+                <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
+                  Question
+                </h3>
+                <div className="text-white text-sm leading-relaxed">
+                  <div className="whitespace-pre-wrap">
+                    {message.content}
+                  </div>
+                </div>
+              </div>
+            ))}
+            {chatMessages.filter(msg => msg.type === 'assistant').length > 0 && (
+              <div>
+                <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
+                  Answer
+                </h3>
+                {chatMessages.filter(msg => msg.type === 'assistant').map((message) => (
+                  <div key={message.id} className="text-white text-sm leading-relaxed">
+                    <div className="whitespace-pre-wrap">
+                      {parseCitations(message.content).map((part, index) => (
+                        part.type === 'text' ? (
+                          <span key={index}>{part.content}</span>
+                        ) : (
+                          <button
+                            key={index}
+                            onClick={() => onCitationClick(part.seconds!)}
+                            className="inline-flex items-center justify-center w-5 h-5 bg-blue-500 text-white text-xs rounded-full mx-1 hover:bg-blue-600 cursor-pointer"
+                            title={`Jump to ${Math.floor(part.seconds! / 60)}:${(part.seconds! % 60).toString().padStart(2, '0')}`}
+                          >
+                            {part.content}
+                          </button>
+                        )
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+        {isLoading && (
+          <div>
+            <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
+              Answer
+            </h3>
+            <div className="text-gray-400">Thinking...</div>
+          </div>
+        )}
+      </div>
+
+      <div className="border-t border-gray-700 p-4">
+        <textarea
+          ref={chatInputRef}
+          value={currentQuestion}
+          onChange={(e) => setCurrentQuestion(e.target.value)}
+          onKeyDown={handleKeyPress}
+          placeholder="Ask a question about this video..."
+          className="w-full p-2 bg-gray-800 text-white border border-gray-600 rounded-lg resize-none focus:outline-none focus:border-blue-accent"
+          rows={3}
+          disabled={isLoading}
+        />
+        <div className="text-xs text-gray-400 mt-1">
+          Press Enter to send, Shift+Enter for new line
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const VideoPage = () => {
+  const { videoId } = useParams<{ videoId: string }>()
+  const { apiKey } = useUser()
+
+  const [currentTimeInS, setCurrentTimeInS] = useState(0)
+  const [seekTimeInS, setSeekTimeInS] = useState(-1)
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "transcript" | "chat"
+  >("overview")
+  const [videoMetadata, setVideoMetadata] = useState<{
+    video_title?: string
+    channel_title?: string
+    published_iso?: string
+  } | null>(null)
+
+  // Fetch metadata once on mount
+  if (!videoMetadata && videoId) {
+    const fetchMetadata = async () => {
+      try {
+        const response = await axios.get<VideoOverview>(
+          `${import.meta.env.VITE_API_URL}/get-overview/${videoId}`
+        )
+        setVideoMetadata({
+          video_title: response.data.video_title,
+          channel_title: response.data.channel_title,
+          published_iso: response.data.published_iso
+        })
+      } catch (error) {
+        console.error("Error fetching video metadata:", error)
+        setVideoMetadata({})
+      }
+    }
+    fetchMetadata()
+  }
+
+  const handleKeyPointClick = (time: number) => {
+    setSeekTimeInS(time)
+  }
+
+
+  const handleTimestampClick = (timestamp: string) => {
+    const [minutes, seconds] = timestamp.split(":").map(Number)
+    const timeInSeconds = minutes * 60 + seconds
+    setSeekTimeInS(timeInSeconds)
+  }
+
+
+  const handleCitationClick = (seconds: number) => {
+    setSeekTimeInS(seconds)
+  }
+
+  if (!videoId) return <div>No video ID provided</div>
   return (
     <div className="flex flex-col md:flex-row">
       <div className="w-full md:w-1/2 p-4">
@@ -255,14 +480,14 @@ const VideoPage = () => {
           key={videoId}
         />
         <div className="card mt-4">
-          <span className="text-lg font-bold">{videoOverview.video_title}</span>
+          <span className="text-lg font-bold">{videoMetadata?.video_title || "Loading..."}</span>
           <div className="flex flex-row justify-between text-sm">
-            {videoOverview.channel_title && (
-              <span className="block mt-2">{videoOverview.channel_title}</span>
+            {videoMetadata?.channel_title && (
+              <span className="block mt-2">{videoMetadata.channel_title}</span>
             )}
-            {videoOverview.published_iso && (
+            {videoMetadata?.published_iso && (
               <span className="block mt-2">
-                {DateTime.fromISO(videoOverview.published_iso).toLocaleString(
+                {DateTime.fromISO(videoMetadata.published_iso).toLocaleString(
                   DateTime.DATE_FULL
                 )}
               </span>
@@ -323,169 +548,26 @@ const VideoPage = () => {
 
         <div className="overflow-auto h-[72svh] border-2 border-gray-700 rounded-lg text-sm custom-scrollbar">
           {activeTab === "overview" && (
-            <div>
-              {videoOverview.chapters.map((chapter: Chapter, index: number) => (
-                <div
-                  key={index}
-                  className={`text-sm ${
-                    index === currentChapterIndex
-                      ? "bg-gray-800 rounded-lg"
-                      : ""
-                  }`}
-                >
-                  <div className="p-1">
-                    <h3 className="text-lg font-semibold mb-2 flex items-center">
-                      <span
-                        className="cursor-pointer mr-2 text-blue-accent hover:underline"
-                        onClick={() =>
-                          handleKeyPointClick(chapter.key_points[0].time)
-                        }
-                      >
-                        {chapter.title}
-                      </span>
-                    </h3>
-                    <div className="flex flex-wrap gap-2 mt-1">
-                      {chapter.associations.map(
-                        (association: string, associationIndex: number) => (
-                          <span
-                            key={associationIndex}
-                            className="px-2 py-1 bg-gray-700 text-white text-xs rounded-full"
-                          >
-                            {association}
-                          </span>
-                        )
-                      )}
-                    </div>
-                    <div className="m-2">
-                      <ul className="list-disc pl-5">
-                        {chapter.key_points.map(
-                          (keyPoint: KeyPoint, pointIndex: number) => (
-                            <li key={pointIndex}>
-                              <span
-                                className="cursor-pointer text-gray-300 hover:text-white hover:underline"
-                                onClick={() =>
-                                  handleKeyPointClick(keyPoint.time)
-                                }
-                              >
-                                {keyPoint.text}
-                              </span>
-                            </li>
-                          )
-                        )}
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <OverviewContainer
+              videoId={videoId}
+              currentTimeInS={currentTimeInS}
+              onKeyPointClick={handleKeyPointClick}
+            />
           )}
 
           {activeTab === "transcript" && (
-            <div className="p-4">
-              {transcript === null ? (
-                <div className="text-gray-400 text-center">
-                  Loading transcript...
-                </div>
-              ) : transcript.length === 0 ? (
-                <div className="text-gray-400 text-center">
-                  Transcript not available for this video
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {groupTranscriptEntries(transcript).map((group, index) => (
-                    <div key={index} className="flex gap-3">
-                      <span
-                        className="text-blue-accent font-mono text-sm shrink-0 cursor-pointer hover:underline"
-                        onClick={() => handleTimestampClick(group.timestamp)}
-                      >
-                        {group.timestamp}
-                      </span>
-                      <span className="text-white text-sm leading-relaxed">
-                        {group.content}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+            <TranscriptContainer
+              videoId={videoId}
+              onTimestampClick={handleTimestampClick}
+            />
           )}
 
           {activeTab === "chat" && (
-            <div className="h-full flex flex-col">
-              <div className="flex-1 overflow-auto p-4">
-                {chatMessages.length === 0 ? (
-                  <div className="text-gray-400 text-center">
-                    Ask a question about this video
-                  </div>
-                ) : (
-                  <>
-                    {chatMessages.filter(msg => msg.type === 'user').map((message) => (
-                      <div key={message.id} className="mb-6">
-                        <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
-                          Question
-                        </h3>
-                        <div className="text-white text-sm leading-relaxed">
-                          <div className="whitespace-pre-wrap">
-                            {message.content}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                    {chatMessages.filter(msg => msg.type === 'assistant').length > 0 && (
-                      <div>
-                        <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
-                          Answer
-                        </h3>
-                        {chatMessages.filter(msg => msg.type === 'assistant').map((message) => (
-                          <div key={message.id} className="text-white text-sm leading-relaxed">
-                            <div className="whitespace-pre-wrap">
-                              {parseCitations(message.content).map((part, index) => (
-                                part.type === 'text' ? (
-                                  <span key={index}>{part.content}</span>
-                                ) : (
-                                  <button
-                                    key={index}
-                                    onClick={() => handleCitationClick(part.seconds!)}
-                                    className="inline-flex items-center justify-center w-5 h-5 bg-blue-500 text-white text-xs rounded-full mx-1 hover:bg-blue-600 cursor-pointer"
-                                    title={`Jump to ${Math.floor(part.seconds! / 60)}:${(part.seconds! % 60).toString().padStart(2, '0')}`}
-                                  >
-                                    {part.content}
-                                  </button>
-                                )
-                              ))}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-                {isLoading && (
-                  <div>
-                    <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
-                      Answer
-                    </h3>
-                    <div className="text-gray-400">Thinking...</div>
-                  </div>
-                )}
-              </div>
-
-              <div className="border-t border-gray-700 p-4">
-                <textarea
-                  ref={chatInputRef}
-                  value={currentQuestion}
-                  onChange={(e) => setCurrentQuestion(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder="Ask a question about this video..."
-                  className="w-full p-2 bg-gray-800 text-white border border-gray-600 rounded-lg resize-none focus:outline-none focus:border-blue-accent"
-                  rows={3}
-                  disabled={isLoading}
-                />
-                <div className="text-xs text-gray-400 mt-1">
-                  Press Enter to send, Shift+Enter for new line
-                </div>
-              </div>
-            </div>
+            <ChatContainer
+              videoId={videoId}
+              apiKey={apiKey}
+              onCitationClick={handleCitationClick}
+            />
           )}
         </div>
       </div>
