@@ -190,6 +190,48 @@ const VideoPage = () => {
     }
   }
 
+  const handleCitationClick = (seconds: number) => {
+    setSeekTimeInS(seconds)
+  }
+
+  const parseCitations = (text: string) => {
+    const citationRegex = /\[CITE:(\d+)\]/g
+    const parts = []
+    let lastIndex = 0
+    let citationCounter = 1
+    let match
+
+    while ((match = citationRegex.exec(text)) !== null) {
+      // Add text before citation
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: text.slice(lastIndex, match.index)
+        })
+      }
+
+      // Add citation
+      parts.push({
+        type: 'citation',
+        content: citationCounter.toString(),
+        seconds: parseInt(match[1])
+      })
+
+      citationCounter++
+      lastIndex = match.index + match[0].length
+    }
+
+    // Add remaining text
+    if (lastIndex < text.length) {
+      parts.push({
+        type: 'text',
+        content: text.slice(lastIndex)
+      })
+    }
+
+    return parts
+  }
+
   if (!videoOverview || !videoOverview.chapters)
     return <div>Loading video overview...</div>
   return (
@@ -386,7 +428,20 @@ const VideoPage = () => {
                         {chatMessages.filter(msg => msg.type === 'assistant').map((message) => (
                           <div key={message.id} className="text-white text-sm leading-relaxed">
                             <div className="whitespace-pre-wrap">
-                              {message.content}
+                              {parseCitations(message.content).map((part, index) => (
+                                part.type === 'text' ? (
+                                  <span key={index}>{part.content}</span>
+                                ) : (
+                                  <button
+                                    key={index}
+                                    onClick={() => handleCitationClick(part.seconds!)}
+                                    className="inline-flex items-center justify-center w-5 h-5 bg-blue-500 text-white text-xs rounded-full mx-1 hover:bg-blue-600 cursor-pointer"
+                                    title={`Jump to ${Math.floor(part.seconds! / 60)}:${(part.seconds! % 60).toString().padStart(2, '0')}`}
+                                  >
+                                    {part.content}
+                                  </button>
+                                )
+                              ))}
                             </div>
                           </div>
                         ))}
