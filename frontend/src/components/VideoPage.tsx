@@ -3,6 +3,7 @@ import YouTubeEmbed from "./VideoEmbed"
 import { useParams } from "react-router-dom"
 import axios from "axios"
 import { DateTime } from "luxon"
+import { useUser } from "./UserContext"
 import "../styles/custom-scrollbar.css"
 
 export interface VideoOverview {
@@ -37,6 +38,7 @@ export interface ChatMessage {
 }
 const VideoPage = () => {
   const { videoId } = useParams<{ videoId: string }>()
+  const { apiKey } = useUser()
 
   const [currentTimeInS, setCurrentTimeInS] = useState(0)
   const [seekTimeInS, setSeekTimeInS] = useState(-1)
@@ -165,6 +167,7 @@ const VideoPage = () => {
         `${import.meta.env.VITE_API_URL}/chat/${videoId}`,
         {
           question: currentQuestion,
+          user_api_key: apiKey,
         }
       )
 
@@ -178,10 +181,11 @@ const VideoPage = () => {
       setChatMessages([userMessage, assistantMessage])
     } catch (error) {
       console.error("Error sending message:", error)
+      const errorContent = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail || "Sorry, there was an error processing your question."
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
-        content: "Sorry, there was an error processing your question.",
+        content: errorContent,
         timestamp: new Date(),
       }
       setChatMessages([userMessage, errorMessage])

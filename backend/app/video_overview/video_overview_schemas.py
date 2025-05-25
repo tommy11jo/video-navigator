@@ -75,6 +75,7 @@ class TranscriptEntry(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str
+    user_api_key: Optional[str] = None
 
 
 class ChatResponse(BaseModel):

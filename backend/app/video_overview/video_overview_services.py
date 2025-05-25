@@ -198,3 +198,40 @@ async def get_claude_completion(messages, system_prompt, anthropic_client) -> st
 
     content = completion.content[0].text
     return content
+
+
+async def get_anthropic_client_with_rate_limiting(
+    request: Request, 
+    user_api_key: str | None, 
+    supabase
+) -> tuple[object, bool]:
+    """
+    Determine which Anthropic client to use based on rate limits and API key availability.
+    
+    Returns:
+        tuple: (anthropic_client, should_increment_user_rate_limit)
+    """
+    from .video_overview_deps import get_anthropic_client
+    
+    user_api_limit_reached = await user_rate_limit_exceeded(request, supabase)
+    if user_api_limit_reached:
+        if not user_api_key:
+            raise HTTPException(
+                status_code=429,
+                detail="Free tier quota exceeded. Please use your API key to continue.",
+            )
+        else:
+            return get_anthropic_client(True, user_api_key), False
+ 
+    else:
+        api_limit_reached = await net_api_limit_reached(supabase)
+        if not api_limit_reached:
+            return get_anthropic_client(False), True
+        else:
+            if not user_api_key:
+                raise HTTPException(
+                    status_code=429,
+                    detail="Total API limit reached right now. Please use your API key.",
+                )
+            else:
+                return get_anthropic_client(True, user_api_key), False

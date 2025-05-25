@@ -29,6 +29,7 @@ from .video_overview_services import (
     get_video_metadata,
     incr_user_rate_limit,
     user_rate_limit_exceeded,
+    get_anthropic_client_with_rate_limiting,
 )
 
 logger = logging.getLogger(__name__)
@@ -164,29 +165,12 @@ async def generate_video_overview(
     if existing_overview:
         return existing_overview
 
-    user_api_limit_reached = await user_rate_limit_exceeded(request, supabase)
-    if user_api_limit_reached:
-        if not user_api_key:
-            raise HTTPException(
-                status_code=429,
-                detail="Free tier quota exceeded. Please use your API key to continue.",
-            )
-        else:
-            anthropic_client = get_anthropic_client(True, user_api_key)
- 
-    else:
-        api_limit_reached = await net_api_limit_reached(supabase)
-        if not api_limit_reached:
-            anthropic_client = get_anthropic_client(False)
-            await incr_user_rate_limit(request, supabase)
-        else:
-            if not user_api_key:
-                raise HTTPException(
-                    status_code=429,
-                    detail="Total API limit reached right now. Please use your API key.",
-                )
-            else:
-                anthropic_client = get_anthropic_client(True, user_api_key)
+    anthropic_client, should_increment_user_rate_limit = await get_anthropic_client_with_rate_limiting(
+        request, user_api_key, supabase
+    )
+    
+    if should_increment_user_rate_limit:
+        await incr_user_rate_limit(request, supabase)
 
     logger.info(f"Generate new video overview for video_id: {video_id}")
     await incr_api_usage(supabase)
@@ -364,7 +348,24 @@ async def get_transcript_by_video_id(video_id: str) -> List[TranscriptEntry]:
 #     return metadata
 
 @router.post("/chat/{video_id}")
-async def chat_about_video(video_id: str, request: ChatRequest) -> ChatResponse:
+async def chat_about_video(
+    video_id: str, 
+    request: Request,
+    body: ChatRequest,
+    supabase=Depends(get_supabase_client)
+) -> ChatResponse:
+    user_api_key = body.user_api_key
+    
+    # Check rate limits and determine which API key to use
+    anthropic_client, should_increment_user_rate_limit = await get_anthropic_client_with_rate_limiting(
+        request, user_api_key, supabase
+    )
+    
+    if should_increment_user_rate_limit:
+        await incr_user_rate_limit(request, supabase)
+
+    await incr_api_usage(supabase)
+    
     # Get transcript for context
     transcript = await get_transcript(video_id)
     if not transcript:
@@ -396,11 +397,8 @@ Example: "The speaker mentions garlic flavor [CITE:699] and preservatives."
 NOT: "The speaker discusses this [CITE:699-715]" """
     
     messages = [
-        user(f"Here is the video transcript with timestamps:\n\n{transcript_text}\n\nQuestion: {request.question}")
+        user(f"Here is the video transcript with timestamps:\n\n{transcript_text}\n\nQuestion: {body.question}")
     ]
-    
-    # Use the same anthropic client as video overview generation
-    anthropic_client = get_anthropic_client(False)
     
     try:
         content = await get_claude_completion(messages, system_prompt, anthropic_client)
