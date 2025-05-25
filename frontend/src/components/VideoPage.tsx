@@ -195,7 +195,7 @@ const VideoPage = () => {
   }
 
   const parseCitations = (text: string) => {
-    const citationRegex = /\[CITE:(\d+)\]/g
+    const citationRegex = /\[CITE:(\d+)(?:-\d+)?\]/g
     const parts = []
     let lastIndex = 0
     let citationCounter = 1
@@ -210,7 +210,7 @@ const VideoPage = () => {
         })
       }
 
-      // Add citation
+      // Add citation - use first timestamp if range is provided
       parts.push({
         type: 'citation',
         content: citationCounter.toString(),

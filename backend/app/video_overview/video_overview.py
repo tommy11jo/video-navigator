@@ -360,14 +360,10 @@ async def chat_about_video(video_id: str, request: ChatRequest) -> ChatResponse:
         transcript_text = transcript_text[:max_transcript_length]
     
     # Create chat messages for Claude
-    system_prompt = """You are a helpful assistant that answers questions about video content based on the provided transcript. 
-Use the transcript to provide accurate, detailed answers. When referencing specific parts of the video, include citations using this exact format: [CITE:seconds] where seconds is the timestamp in seconds (not minutes:seconds format).
+    system_prompt = """Answer questions using the video transcript. Be concise and entity-dense. Include citations as [CITE:seconds] when referencing specific moments - use only single timestamps, never ranges. Focus on concrete facts, names, numbers, and key concepts.
 
-For example:
-- "The speaker mentions this point [CITE:125] about artificial intelligence."
-- "According to the discussion [CITE:67], the main issue is..."
-
-Use citations frequently to help users navigate to relevant parts of the video. Be concise but thorough in your responses."""
+Example: "The speaker mentions garlic flavor [CITE:699] and preservatives."
+NOT: "The speaker discusses this [CITE:699-715]" """
     
     messages = [
         user(f"Here is the video transcript with timestamps:\n\n{transcript_text}\n\nQuestion: {request.question}")
