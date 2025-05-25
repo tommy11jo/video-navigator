@@ -8,7 +8,11 @@ interface ChatContainerProps {
   onCitationClick: (seconds: number) => void
 }
 
-const ChatContainer = ({ videoId, apiKey, onCitationClick }: ChatContainerProps) => {
+const ChatContainer = ({
+  videoId,
+  apiKey,
+  onCitationClick,
+}: ChatContainerProps) => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [currentQuestion, setCurrentQuestion] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -52,7 +56,9 @@ const ChatContainer = ({ videoId, apiKey, onCitationClick }: ChatContainerProps)
       setChatMessages([userMessage, assistantMessage])
     } catch (error) {
       console.error("Error sending message:", error)
-      const errorContent = (error as { response?: { data?: { detail?: string } } }).response?.data?.detail || "Sorry, there was an error processing your question."
+      const errorContent =
+        (error as { response?: { data?: { detail?: string } } }).response?.data
+          ?.detail || "Sorry, there was an error processing your question."
       const errorMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         type: "assistant",
@@ -82,15 +88,15 @@ const ChatContainer = ({ videoId, apiKey, onCitationClick }: ChatContainerProps)
     while ((match = citationRegex.exec(text)) !== null) {
       if (match.index > lastIndex) {
         parts.push({
-          type: 'text',
-          content: text.slice(lastIndex, match.index)
+          type: "text",
+          content: text.slice(lastIndex, match.index),
         })
       }
 
       parts.push({
-        type: 'citation',
+        type: "citation",
         content: citationCounter.toString(),
-        seconds: parseInt(match[1])
+        seconds: parseInt(match[1]),
       })
 
       citationCounter++
@@ -99,8 +105,8 @@ const ChatContainer = ({ videoId, apiKey, onCitationClick }: ChatContainerProps)
 
     if (lastIndex < text.length) {
       parts.push({
-        type: 'text',
-        content: text.slice(lastIndex)
+        type: "text",
+        content: text.slice(lastIndex),
       })
     }
 
@@ -111,48 +117,56 @@ const ChatContainer = ({ videoId, apiKey, onCitationClick }: ChatContainerProps)
     <div className="h-full flex flex-col">
       <div className="flex-1 overflow-auto p-4">
         {chatMessages.length === 0 ? (
-          <div className="text-gray-400 text-center">
-            Ask a question about this video
-          </div>
+          <div></div>
         ) : (
           <>
-            {chatMessages.filter(msg => msg.type === 'user').map((message) => (
-              <div key={message.id} className="mb-6">
-                <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
-                  Question
-                </h3>
-                <div className="text-white text-sm leading-relaxed">
-                  <div className="whitespace-pre-wrap">
-                    {message.content}
+            {chatMessages
+              .filter((msg) => msg.type === "user")
+              .map((message) => (
+                <div key={message.id} className="mb-6">
+                  <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
+                    Question
+                  </h3>
+                  <div className="text-white text-sm leading-relaxed">
+                    <div className="whitespace-pre-wrap">{message.content}</div>
                   </div>
                 </div>
-              </div>
-            ))}
-            {chatMessages.filter(msg => msg.type === 'assistant').length > 0 && (
+              ))}
+            {chatMessages.filter((msg) => msg.type === "assistant").length >
+              0 && (
               <div>
                 <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
                   Answer
                 </h3>
-                {chatMessages.filter(msg => msg.type === 'assistant').map((message) => (
-                  <div key={message.id} className="text-white text-sm leading-relaxed">
-                    <div className="whitespace-pre-wrap">
-                      {parseCitations(message.content).map((part, index) => (
-                        part.type === 'text' ? (
-                          <span key={index}>{part.content}</span>
-                        ) : (
-                          <button
-                            key={index}
-                            onClick={() => onCitationClick(part.seconds!)}
-                            className="inline-flex items-center justify-center w-5 h-5 bg-blue-500 text-white text-xs rounded-full mx-1 hover:bg-blue-600 cursor-pointer"
-                            title={`Jump to ${Math.floor(part.seconds! / 60)}:${(part.seconds! % 60).toString().padStart(2, '0')}`}
-                          >
-                            {part.content}
-                          </button>
-                        )
-                      ))}
+                {chatMessages
+                  .filter((msg) => msg.type === "assistant")
+                  .map((message) => (
+                    <div
+                      key={message.id}
+                      className="text-white text-sm leading-relaxed"
+                    >
+                      <div className="whitespace-pre-wrap">
+                        {parseCitations(message.content).map((part, index) =>
+                          part.type === "text" ? (
+                            <span key={index}>{part.content}</span>
+                          ) : (
+                            <button
+                              key={index}
+                              onClick={() => onCitationClick(part.seconds!)}
+                              className="inline-flex items-center justify-center w-5 h-5 bg-blue-500 text-white text-xs rounded-full mx-1 hover:bg-blue-600 cursor-pointer"
+                              title={`Jump to ${Math.floor(
+                                part.seconds! / 60
+                              )}:${(part.seconds! % 60)
+                                .toString()
+                                .padStart(2, "0")}`}
+                            >
+                              {part.content}
+                            </button>
+                          )
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
               </div>
             )}
           </>

@@ -1,5 +1,6 @@
 import { useState } from "react"
 import axios from "axios"
+import { Loader2 } from "lucide-react"
 import { VideoOverview, Chapter, KeyPoint } from "./VideoPage"
 
 interface OverviewContainerProps {
@@ -27,7 +28,12 @@ const OverviewContainer = ({ videoId, currentTimeInS, onKeyPointClick }: Overvie
       }
     }
     fetchVideoData()
-    return <div className="p-4 text-gray-400 text-center">Loading video overview...</div>
+    return (
+      <div className="p-4 text-gray-400 text-center flex items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+        Loading video overview...
+      </div>
+    )
   }
 
   if (!videoOverview || !videoOverview.chapters) {
