@@ -11,6 +11,7 @@ interface TranscriptContainerProps {
 const TranscriptContainer = ({ videoId, onTimestampClick }: TranscriptContainerProps) => {
   const [transcript, setTranscript] = useState<TranscriptEntry[] | null>(null)
   const [isLoaded, setIsLoaded] = useState(false)
+  const [hasError, setHasError] = useState(false)
 
   if (!isLoaded) {
     const fetchTranscript = async () => {
@@ -19,9 +20,11 @@ const TranscriptContainer = ({ videoId, onTimestampClick }: TranscriptContainerP
           `${import.meta.env.VITE_API_URL}/get-transcript/${videoId}`
         )
         setTranscript(response.data)
+        setHasError(false)
       } catch (error) {
         console.error("Error fetching transcript:", error)
-        setTranscript([])
+        setTranscript(null)
+        setHasError(true)
       } finally {
         setIsLoaded(true)
       }
@@ -70,7 +73,7 @@ const TranscriptContainer = ({ videoId, onTimestampClick }: TranscriptContainerP
 
   return (
     <div className="p-4">
-      {transcript === null || transcript.length === 0 ? (
+      {hasError || !transcript ? (
         <div className="text-gray-400 text-center">
           Transcript not available for this video
         </div>
