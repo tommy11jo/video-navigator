@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import YouTubeEmbed from "./VideoEmbed"
 import { useParams } from "react-router-dom"
 import axios from "axios"
@@ -49,6 +49,7 @@ const VideoPage = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
   const [currentQuestion, setCurrentQuestion] = useState("")
   const [isLoading, setIsLoading] = useState(false)
+  const chatInputRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (!videoId) return
@@ -78,6 +79,12 @@ const VideoPage = () => {
       fetchTranscript()
     }
   }, [videoId, activeTab, transcript])
+
+  useEffect(() => {
+    if (activeTab === "chat") {
+      chatInputRef.current?.focus()
+    }
+  }, [activeTab])
 
   useEffect(() => {
     if (!videoOverview) return
@@ -461,6 +468,7 @@ const VideoPage = () => {
 
               <div className="border-t border-gray-700 p-4">
                 <textarea
+                  ref={chatInputRef}
                   value={currentQuestion}
                   onChange={(e) => setCurrentQuestion(e.target.value)}
                   onKeyDown={handleKeyPress}
