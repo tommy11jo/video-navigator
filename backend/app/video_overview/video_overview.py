@@ -348,6 +348,9 @@ async def chat_about_video(video_id: str, request: ChatRequest) -> ChatResponse:
             detail="Unable to process request. Transcript not available for the given video ID.",
         )
     
+    # Get video metadata for context
+    video_metadata = await get_video_metadata(video_id)
+    
     # Convert transcript to timestamped text format
     transcript_text = get_timestamped_transcript_text(transcript)
     
@@ -360,7 +363,9 @@ async def chat_about_video(video_id: str, request: ChatRequest) -> ChatResponse:
         transcript_text = transcript_text[:max_transcript_length]
     
     # Create chat messages for Claude
-    system_prompt = """Answer questions using the video transcript. Be concise and entity-dense. Include citations as [CITE:seconds] when referencing specific moments - use only single timestamps, never ranges. Focus on concrete facts, names, numbers, and key concepts.
+    system_prompt = f"""Answer questions using the video transcript. Be concise and entity-dense. Include citations as [CITE:seconds] when referencing specific moments - use only single timestamps, never ranges. Focus on concrete facts, names, numbers, and key concepts.
+
+This is a video titled "{video_metadata.title}" by {video_metadata.channel_title}. If present, use the speaker's name informally when referencing them in responses.
 
 Example: "The speaker mentions garlic flavor [CITE:699] and preservatives."
 NOT: "The speaker discusses this [CITE:699-715]" """
