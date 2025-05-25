@@ -28,6 +28,13 @@ export interface TranscriptEntry {
   timestamp: string
   content: string
 }
+
+export interface ChatMessage {
+  id: string
+  type: "user" | "assistant"
+  content: string
+  timestamp: Date
+}
 const VideoPage = () => {
   const { videoId } = useParams<{ videoId: string }>()
 
@@ -35,8 +42,13 @@ const VideoPage = () => {
   const [seekTimeInS, setSeekTimeInS] = useState(-1)
   const [videoOverview, setVideoOverview] = useState<VideoOverview | null>(null)
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1)
-  const [activeTab, setActiveTab] = useState<'overview' | 'transcript'>('overview')
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "transcript" | "chat"
+  >("overview")
   const [transcript, setTranscript] = useState<TranscriptEntry[] | null>(null)
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([])
+  const [currentQuestion, setCurrentQuestion] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
 
   useEffect(() => {
     if (!videoId) return
@@ -50,7 +62,7 @@ const VideoPage = () => {
   }, [videoId])
 
   useEffect(() => {
-    if (!videoId || activeTab !== 'transcript') return
+    if (!videoId || activeTab !== "transcript") return
     const fetchTranscript = async () => {
       try {
         const response = await axios.get<TranscriptEntry[]>(
@@ -58,7 +70,7 @@ const VideoPage = () => {
         )
         setTranscript(response.data)
       } catch (error) {
-        console.error('Error fetching transcript:', error)
+        console.error("Error fetching transcript:", error)
         setTranscript([])
       }
     }
@@ -89,26 +101,26 @@ const VideoPage = () => {
 
   const groupTranscriptEntries = (entries: TranscriptEntry[]) => {
     if (!entries.length) return []
-    
+
     const grouped = []
     let currentGroup = {
       timestamp: entries[0].timestamp,
-      content: entries[0].content
+      content: entries[0].content,
     }
-    
+
     for (let i = 1; i < entries.length; i++) {
       const entry = entries[i]
       // Group entries that are within 10 seconds of each other
       const currentTime = parseTimestamp(currentGroup.timestamp)
       const entryTime = parseTimestamp(entry.timestamp)
-      
+
       if (entryTime - currentTime <= 10) {
-        currentGroup.content += ' ' + entry.content
+        currentGroup.content += " " + entry.content
       } else {
         grouped.push(currentGroup)
         currentGroup = {
           timestamp: entry.timestamp,
-          content: entry.content
+          content: entry.content,
         }
       }
     }
@@ -117,13 +129,65 @@ const VideoPage = () => {
   }
 
   const parseTimestamp = (timestamp: string): number => {
-    const [minutes, seconds] = timestamp.split(':').map(Number)
+    const [minutes, seconds] = timestamp.split(":").map(Number)
     return minutes * 60 + seconds
   }
 
   const handleTimestampClick = (timestamp: string) => {
     const timeInSeconds = parseTimestamp(timestamp)
     setSeekTimeInS(timeInSeconds)
+  }
+
+  const handleSendMessage = async () => {
+    if (!currentQuestion.trim() || !videoId || isLoading) return
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      type: "user",
+      content: currentQuestion,
+      timestamp: new Date(),
+    }
+
+    // Clear previous messages and add new user message
+    setChatMessages([userMessage])
+    setCurrentQuestion("")
+    setIsLoading(true)
+
+    try {
+      const response = await axios.post(
+        `${import.meta.env.VITE_API_URL}/chat/${videoId}`,
+        {
+          question: currentQuestion,
+        }
+      )
+
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: response.data.answer,
+        timestamp: new Date(),
+      }
+
+      setChatMessages([userMessage, assistantMessage])
+    } catch (error) {
+      console.error("Error sending message:", error)
+      const errorMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        type: "assistant",
+        content: "Sorry, there was an error processing your question.",
+        timestamp: new Date(),
+      }
+      setChatMessages([userMessage, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault()
+      handleSendMessage()
+    }
   }
 
   if (!videoOverview || !videoOverview.chapters)
@@ -173,35 +237,47 @@ const VideoPage = () => {
           <div className="flex border-b border-gray-700">
             <button
               className={`px-4 py-2 text-sm font-medium ${
-                activeTab === 'overview'
-                  ? 'text-blue-accent border-b-2 border-blue-accent'
-                  : 'text-gray-400 hover:text-white'
+                activeTab === "overview"
+                  ? "text-blue-accent border-b-2 border-blue-accent"
+                  : "text-gray-400 hover:text-white"
               }`}
-              onClick={() => setActiveTab('overview')}
+              onClick={() => setActiveTab("overview")}
             >
               Video Overview
             </button>
             <button
               className={`px-4 py-2 text-sm font-medium ${
-                activeTab === 'transcript'
-                  ? 'text-blue-accent border-b-2 border-blue-accent'
-                  : 'text-gray-400 hover:text-white'
+                activeTab === "transcript"
+                  ? "text-blue-accent border-b-2 border-blue-accent"
+                  : "text-gray-400 hover:text-white"
               }`}
-              onClick={() => setActiveTab('transcript')}
+              onClick={() => setActiveTab("transcript")}
             >
               Transcript
             </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium ${
+                activeTab === "chat"
+                  ? "text-blue-accent border-b-2 border-blue-accent"
+                  : "text-gray-400 hover:text-white"
+              }`}
+              onClick={() => setActiveTab("chat")}
+            >
+              Chat
+            </button>
           </div>
         </div>
-        
+
         <div className="overflow-auto h-[72svh] border-2 border-gray-700 rounded-lg text-sm custom-scrollbar">
-          {activeTab === 'overview' && (
+          {activeTab === "overview" && (
             <div>
               {videoOverview.chapters.map((chapter: Chapter, index: number) => (
                 <div
                   key={index}
                   className={`text-sm ${
-                    index === currentChapterIndex ? "bg-gray-800 rounded-lg" : ""
+                    index === currentChapterIndex
+                      ? "bg-gray-800 rounded-lg"
+                      : ""
                   }`}
                 >
                   <div className="p-1">
@@ -234,7 +310,9 @@ const VideoPage = () => {
                             <li key={pointIndex}>
                               <span
                                 className="cursor-pointer text-gray-300 hover:text-white hover:underline"
-                                onClick={() => handleKeyPointClick(keyPoint.time)}
+                                onClick={() =>
+                                  handleKeyPointClick(keyPoint.time)
+                                }
                               >
                                 {keyPoint.text}
                               </span>
@@ -248,8 +326,8 @@ const VideoPage = () => {
               ))}
             </div>
           )}
-          
-          {activeTab === 'transcript' && (
+
+          {activeTab === "transcript" && (
             <div className="p-4">
               {transcript === null ? (
                 <div className="text-gray-400 text-center">
@@ -263,7 +341,7 @@ const VideoPage = () => {
                 <div className="space-y-4">
                   {groupTranscriptEntries(transcript).map((group, index) => (
                     <div key={index} className="flex gap-3">
-                      <span 
+                      <span
                         className="text-blue-accent font-mono text-sm shrink-0 cursor-pointer hover:underline"
                         onClick={() => handleTimestampClick(group.timestamp)}
                       >
@@ -276,6 +354,70 @@ const VideoPage = () => {
                   ))}
                 </div>
               )}
+            </div>
+          )}
+
+          {activeTab === "chat" && (
+            <div className="h-full flex flex-col">
+              <div className="flex-1 overflow-auto p-4">
+                {chatMessages.length === 0 ? (
+                  <div className="text-gray-400 text-center">
+                    Ask a question about this video
+                  </div>
+                ) : (
+                  <>
+                    {chatMessages.filter(msg => msg.type === 'user').map((message) => (
+                      <div key={message.id} className="mb-6">
+                        <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
+                          Question
+                        </h3>
+                        <div className="text-white text-sm leading-relaxed">
+                          <div className="whitespace-pre-wrap">
+                            {message.content}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {chatMessages.filter(msg => msg.type === 'assistant').length > 0 && (
+                      <div>
+                        <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
+                          Answer
+                        </h3>
+                        {chatMessages.filter(msg => msg.type === 'assistant').map((message) => (
+                          <div key={message.id} className="text-white text-sm leading-relaxed">
+                            <div className="whitespace-pre-wrap">
+                              {message.content}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+                {isLoading && (
+                  <div>
+                    <h3 className="text-white text-base font-medium border-b border-white pb-1 mb-4">
+                      Answer
+                    </h3>
+                    <div className="text-gray-400">Thinking...</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-gray-700 p-4">
+                <textarea
+                  value={currentQuestion}
+                  onChange={(e) => setCurrentQuestion(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Ask a question about this video..."
+                  className="w-full p-2 bg-gray-800 text-white border border-gray-600 rounded-lg resize-none focus:outline-none focus:border-blue-accent"
+                  rows={3}
+                  disabled={isLoading}
+                />
+                <div className="text-xs text-gray-400 mt-1">
+                  Press Enter to send, Shift+Enter for new line
+                </div>
+              </div>
             </div>
           )}
         </div>
