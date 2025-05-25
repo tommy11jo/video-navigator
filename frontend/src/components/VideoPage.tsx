@@ -30,6 +30,7 @@ const VideoPage = () => {
   const [seekTimeInS, setSeekTimeInS] = useState(-1)
   const [videoOverview, setVideoOverview] = useState<VideoOverview | null>(null)
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1)
+  const [activeTab, setActiveTab] = useState<'overview' | 'transcript'>('overview')
 
   useEffect(() => {
     if (!videoId) return
@@ -104,57 +105,94 @@ const VideoPage = () => {
         </div>
       </div>
 
-      <div className="w-full md:w-1/2 p-2 overflow-auto h-[80svh] border-2 border-gray-700 rounded-lg text-sm custom-scrollbar">
-        <div>
-          {videoOverview.chapters.map((chapter: Chapter, index: number) => (
-            <div
-              key={index}
-              className={`text-sm ${
-                index === currentChapterIndex ? "bg-gray-800 rounded-lg" : ""
+      <div className="w-full md:w-1/2 p-2">
+        <div className="mb-4">
+          <div className="flex border-b border-gray-700">
+            <button
+              className={`px-4 py-2 text-sm font-medium ${
+                activeTab === 'overview'
+                  ? 'text-blue-accent border-b-2 border-blue-accent'
+                  : 'text-gray-400 hover:text-white'
               }`}
+              onClick={() => setActiveTab('overview')}
             >
-              <div className="p-1">
-                <h3 className="text-lg font-semibold mb-2 flex items-center">
-                  <span
-                    className="cursor-pointer mr-2 text-blue-accent hover:underline"
-                    onClick={() =>
-                      handleKeyPointClick(chapter.key_points[0].time)
-                    }
-                  >
-                    {chapter.title}
-                  </span>
-                </h3>
-                <div className="flex flex-wrap gap-2 mt-1">
-                  {chapter.associations.map(
-                    (association: string, associationIndex: number) => (
+              Video Overview
+            </button>
+            <button
+              className={`px-4 py-2 text-sm font-medium ${
+                activeTab === 'transcript'
+                  ? 'text-blue-accent border-b-2 border-blue-accent'
+                  : 'text-gray-400 hover:text-white'
+              }`}
+              onClick={() => setActiveTab('transcript')}
+            >
+              Transcript
+            </button>
+          </div>
+        </div>
+        
+        <div className="overflow-auto h-[72svh] border-2 border-gray-700 rounded-lg text-sm custom-scrollbar">
+          {activeTab === 'overview' && (
+            <div>
+              {videoOverview.chapters.map((chapter: Chapter, index: number) => (
+                <div
+                  key={index}
+                  className={`text-sm ${
+                    index === currentChapterIndex ? "bg-gray-800 rounded-lg" : ""
+                  }`}
+                >
+                  <div className="p-1">
+                    <h3 className="text-lg font-semibold mb-2 flex items-center">
                       <span
-                        key={associationIndex}
-                        className="px-2 py-1 bg-gray-700 text-white text-xs rounded-full"
+                        className="cursor-pointer mr-2 text-blue-accent hover:underline"
+                        onClick={() =>
+                          handleKeyPointClick(chapter.key_points[0].time)
+                        }
                       >
-                        {association}
+                        {chapter.title}
                       </span>
-                    )
-                  )}
-                </div>
-                <div className="m-2">
-                  <ul className="list-disc pl-5">
-                    {chapter.key_points.map(
-                      (keyPoint: KeyPoint, pointIndex: number) => (
-                        <li key={pointIndex}>
+                    </h3>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {chapter.associations.map(
+                        (association: string, associationIndex: number) => (
                           <span
-                            className="cursor-pointer text-gray-300 hover:text-white hover:underline"
-                            onClick={() => handleKeyPointClick(keyPoint.time)}
+                            key={associationIndex}
+                            className="px-2 py-1 bg-gray-700 text-white text-xs rounded-full"
                           >
-                            {keyPoint.text}
+                            {association}
                           </span>
-                        </li>
-                      )
-                    )}
-                  </ul>
+                        )
+                      )}
+                    </div>
+                    <div className="m-2">
+                      <ul className="list-disc pl-5">
+                        {chapter.key_points.map(
+                          (keyPoint: KeyPoint, pointIndex: number) => (
+                            <li key={pointIndex}>
+                              <span
+                                className="cursor-pointer text-gray-300 hover:text-white hover:underline"
+                                onClick={() => handleKeyPointClick(keyPoint.time)}
+                              >
+                                {keyPoint.text}
+                              </span>
+                            </li>
+                          )
+                        )}
+                      </ul>
+                    </div>
+                  </div>
                 </div>
+              ))}
+            </div>
+          )}
+          
+          {activeTab === 'transcript' && (
+            <div className="p-4">
+              <div className="text-gray-400 text-center">
+                Transcript feature coming soon...
               </div>
             </div>
-          ))}
+          )}
         </div>
       </div>
     </div>

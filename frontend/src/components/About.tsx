@@ -1,7 +1,7 @@
 const AboutPage = () => {
   return (
     <div className="min-h-full bg-black text-white">
-      <div className="container mx-auto px-2">
+      <div className="container mx-auto max-w-2xl px-2">
         <p>
           This project demonstrates a simple but new video watching experience.
           It's useful for people trying to learn, like a student watching a

@@ -106,6 +106,7 @@ async def get_video_metadata(video_id) -> VideoMetadata:
             )
     except Exception as e:
         logger.error(f"An error occurred: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")
     return VideoMetadata(
         title=title,
         chapters=chapters_list,
@@ -155,7 +156,7 @@ async def incr_user_rate_limit(request: Request, supabase=Depends(get_supabase_c
         .eq("ip", cf_connecting_ip)
         .execute()
     )
-    new_count = result.data[0]["count"] + 1
+    new_count = result.data[0]["count"] + 1 if len(result.data) > 0 else 1
     supabase.table("rate_limits").update({"count": new_count}).eq(
         "ip", cf_connecting_ip
     ).execute()
@@ -163,6 +164,8 @@ async def incr_user_rate_limit(request: Request, supabase=Depends(get_supabase_c
 
 async def net_api_limit_reached(supabase, limit: int = TOTAL_API_USAGE_LIMIT):
     response = supabase.table("api_usage").select("total_hits").eq("id", 1).execute()
+    if len(response.data) == 0:
+        return False
     return response.data[0]["total_hits"] >= limit
 
 
