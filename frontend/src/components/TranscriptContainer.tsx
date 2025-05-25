@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import axios from "axios"
 import { Loader2 } from "lucide-react"
 import { TranscriptEntry } from "./VideoPage"
@@ -8,28 +8,37 @@ interface TranscriptContainerProps {
   onTimestampClick: (timestamp: string) => void
 }
 
-const TranscriptContainer = ({ videoId, onTimestampClick }: TranscriptContainerProps) => {
+const TranscriptContainer = ({
+  videoId,
+  onTimestampClick,
+}: TranscriptContainerProps) => {
   const [transcript, setTranscript] = useState<TranscriptEntry[] | null>(null)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [hasError, setHasError] = useState(false)
 
-  if (!isLoaded) {
+  useEffect(() => {
     const fetchTranscript = async () => {
+      setIsLoading(true)
+      setHasError(false)
+
       try {
         const response = await axios.get<TranscriptEntry[]>(
           `${import.meta.env.VITE_API_URL}/get-transcript/${videoId}`
         )
         setTranscript(response.data)
-        setHasError(false)
       } catch (error) {
         console.error("Error fetching transcript:", error)
         setTranscript(null)
         setHasError(true)
       } finally {
-        setIsLoaded(true)
+        setIsLoading(false)
       }
     }
+
     fetchTranscript()
+  }, [])
+
+  if (isLoading) {
     return (
       <div className="p-4 text-gray-400 text-center flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />

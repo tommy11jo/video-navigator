@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import axios from "axios"
 import { Loader2 } from "lucide-react"
 import { VideoOverview, Chapter, KeyPoint } from "./VideoPage"
@@ -9,25 +9,34 @@ interface OverviewContainerProps {
   onKeyPointClick: (time: number) => void
 }
 
-const OverviewContainer = ({ videoId, currentTimeInS, onKeyPointClick }: OverviewContainerProps) => {
+const OverviewContainer = ({
+  videoId,
+  currentTimeInS,
+  onKeyPointClick,
+}: OverviewContainerProps) => {
   const [videoOverview, setVideoOverview] = useState<VideoOverview | null>(null)
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1)
-  const [isLoaded, setIsLoaded] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
-  if (!isLoaded) {
+  useEffect(() => {
     const fetchVideoData = async () => {
+      setIsLoading(true)
       try {
         const response = await axios.get<VideoOverview>(
           `${import.meta.env.VITE_API_URL}/get-overview/${videoId}`
         )
         setVideoOverview(response.data)
-        setIsLoaded(true)
       } catch (error) {
         console.error("Error fetching video overview:", error)
-        setIsLoaded(true)
+      } finally {
+        setIsLoading(false)
       }
     }
+
     fetchVideoData()
+  }, [])
+
+  if (isLoading) {
     return (
       <div className="p-4 text-gray-400 text-center flex items-center justify-center">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -37,7 +46,11 @@ const OverviewContainer = ({ videoId, currentTimeInS, onKeyPointClick }: Overvie
   }
 
   if (!videoOverview || !videoOverview.chapters) {
-    return <div className="p-4 text-gray-400 text-center">Failed to load video overview</div>
+    return (
+      <div className="p-4 text-gray-400 text-center">
+        Failed to load video overview
+      </div>
+    )
   }
 
   // Update current chapter based on time
@@ -46,11 +59,11 @@ const OverviewContainer = ({ videoId, currentTimeInS, onKeyPointClick }: Overvie
     const nextChapterStart =
       videoOverview.chapters[index + 1]?.key_points[0]?.time ?? Infinity
     return (
-      currentTimeInS >= currentChapterStart &&
-      currentTimeInS < nextChapterStart
+      currentTimeInS >= currentChapterStart && currentTimeInS < nextChapterStart
     )
   })
-  const newChapterIndex = chapterIndex !== -1 ? chapterIndex : videoOverview.chapters.length - 1
+  const newChapterIndex =
+    chapterIndex !== -1 ? chapterIndex : videoOverview.chapters.length - 1
   if (newChapterIndex !== currentChapterIndex) {
     setCurrentChapterIndex(newChapterIndex)
   }
@@ -61,18 +74,14 @@ const OverviewContainer = ({ videoId, currentTimeInS, onKeyPointClick }: Overvie
         <div
           key={index}
           className={`text-sm ${
-            index === currentChapterIndex
-              ? "bg-gray-800 rounded-lg"
-              : ""
+            index === currentChapterIndex ? "bg-gray-800 rounded-lg" : ""
           }`}
         >
           <div className="p-1">
             <h3 className="text-lg font-semibold mb-2 flex items-center">
               <span
                 className="cursor-pointer mr-2 text-blue-accent hover:underline"
-                onClick={() =>
-                  onKeyPointClick(chapter.key_points[0].time)
-                }
+                onClick={() => onKeyPointClick(chapter.key_points[0].time)}
               >
                 {chapter.title}
               </span>
@@ -96,9 +105,7 @@ const OverviewContainer = ({ videoId, currentTimeInS, onKeyPointClick }: Overvie
                     <li key={pointIndex}>
                       <span
                         className="cursor-pointer text-gray-300 hover:text-white hover:underline"
-                        onClick={() =>
-                          onKeyPointClick(keyPoint.time)
-                        }
+                        onClick={() => onKeyPointClick(keyPoint.time)}
                       >
                         {keyPoint.text}
                       </span>
