@@ -9,6 +9,8 @@ from .video_overview_deps import (
 from .video_overview_schemas import (
     Chapter,
     ChapterData,
+    ChatRequest,
+    ChatResponse,
     KeyPoint,
     Transcript,
     TranscriptEntry,
@@ -335,6 +337,50 @@ async def get_transcript_by_video_id(video_id: str) -> List[TranscriptEntry]:
 # async def get_video_metadata_by_video_id(video_id: str):
 #     metadata = await get_video_metadata(video_id)
 #     return metadata
+
+@router.post("/chat/{video_id}")
+async def chat_about_video(video_id: str, request: ChatRequest) -> ChatResponse:
+    # Get transcript for context
+    transcript = await get_transcript(video_id)
+    if not transcript:
+        raise HTTPException(
+            status_code=422,
+            detail="Unable to process request. Transcript not available for the given video ID.",
+        )
+    
+    # Convert transcript to timestamped text format
+    transcript_text = get_timestamped_transcript_text(transcript)
+    
+    # Limit transcript length to ~30k characters
+    max_transcript_length = 30_000
+    if len(transcript_text) > max_transcript_length:
+        logger.warning(
+            f"transcript length is {len(transcript_text)}, truncating to {max_transcript_length}"
+        )
+        transcript_text = transcript_text[:max_transcript_length]
+    
+    # Create chat messages for Claude
+    system_prompt = """You are a helpful assistant that answers questions about video content based on the provided transcript. 
+Use the transcript to provide accurate, detailed answers. Reference specific parts of the video when relevant by mentioning timestamps.
+Be concise but thorough in your responses."""
+    
+    messages = [
+        user(f"Here is the video transcript with timestamps:\n\n{transcript_text}\n\nQuestion: {request.question}")
+    ]
+    
+    # Use the same anthropic client as video overview generation
+    anthropic_client = get_anthropic_client(False)
+    
+    try:
+        content = await get_claude_completion(messages, system_prompt, anthropic_client)
+        return ChatResponse(answer=content)
+    except Exception as e:
+        logger.error(f"Error generating chat response: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail="Error generating response. Please try again."
+        )
+
 
 # used for testing
 @router.get("/rate-limit-exceeded")

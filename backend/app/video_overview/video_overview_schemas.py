@@ -71,3 +71,11 @@ class Transcript(BaseModel):
 class TranscriptEntry(BaseModel):
     timestamp: str
     content: str
+
+
+class ChatRequest(BaseModel):
+    question: str
+
+
+class ChatResponse(BaseModel):
+    answer: str
