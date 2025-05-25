@@ -66,3 +66,8 @@ class Moment(BaseModel):
 
 class Transcript(BaseModel):
     moments: List[Moment]
+
+
+class TranscriptEntry(BaseModel):
+    timestamp: str
+    content: str

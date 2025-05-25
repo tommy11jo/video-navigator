@@ -11,6 +11,7 @@ from .video_overview_schemas import (
     ChapterData,
     KeyPoint,
     Transcript,
+    TranscriptEntry,
     VideoOverview,
     VideoOverviewFunctionCallResponse,
 )
@@ -296,10 +297,29 @@ async def get_video_overview(
         )
 
 
-# @router.get("/get-transcript/{video_id}")
-# async def get_transcript_by_video_id(video_id: str):
-#     transcript = await get_transcript(video_id)
-#     return transcript
+def format_timestamp(seconds: float) -> str:
+    """Convert seconds to MM:SS format"""
+    minutes = int(seconds // 60)
+    seconds = int(seconds % 60)
+    return f"{minutes:02d}:{seconds:02d}"
+
+
+@router.get("/get-transcript/{video_id}")
+async def get_transcript_by_video_id(video_id: str) -> List[TranscriptEntry]:
+    transcript = await get_transcript(video_id)
+    if not transcript:
+        raise HTTPException(
+            status_code=422,
+            detail="Unable to process request. Transcript not available for the given video ID.",
+        )
+    
+    return [
+        TranscriptEntry(
+            timestamp=format_timestamp(moment.start),
+            content=moment.text
+        )
+        for moment in transcript.moments
+    ]
 
 
 # used for testing

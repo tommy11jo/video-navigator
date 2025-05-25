@@ -23,6 +23,11 @@ export interface KeyPoint {
   text: string
   time: number
 }
+
+export interface TranscriptEntry {
+  timestamp: string
+  content: string
+}
 const VideoPage = () => {
   const { videoId } = useParams<{ videoId: string }>()
 
@@ -31,6 +36,7 @@ const VideoPage = () => {
   const [videoOverview, setVideoOverview] = useState<VideoOverview | null>(null)
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1)
   const [activeTab, setActiveTab] = useState<'overview' | 'transcript'>('overview')
+  const [transcript, setTranscript] = useState<TranscriptEntry[] | null>(null)
 
   useEffect(() => {
     if (!videoId) return
@@ -42,6 +48,24 @@ const VideoPage = () => {
     }
     fetchVideoData()
   }, [videoId])
+
+  useEffect(() => {
+    if (!videoId || activeTab !== 'transcript') return
+    const fetchTranscript = async () => {
+      try {
+        const response = await axios.get<TranscriptEntry[]>(
+          `${import.meta.env.VITE_API_URL}/get-transcript/${videoId}`
+        )
+        setTranscript(response.data)
+      } catch (error) {
+        console.error('Error fetching transcript:', error)
+        setTranscript([])
+      }
+    }
+    if (!transcript) {
+      fetchTranscript()
+    }
+  }, [videoId, activeTab, transcript])
 
   useEffect(() => {
     if (!videoOverview) return
@@ -61,6 +85,40 @@ const VideoPage = () => {
 
   const handleKeyPointClick = (time: number) => {
     setSeekTimeInS(time)
+  }
+
+  const groupTranscriptEntries = (entries: TranscriptEntry[]) => {
+    if (!entries.length) return []
+    
+    const grouped = []
+    let currentGroup = {
+      timestamp: entries[0].timestamp,
+      content: entries[0].content
+    }
+    
+    for (let i = 1; i < entries.length; i++) {
+      const entry = entries[i]
+      // Group entries that are within 10 seconds of each other
+      const currentTime = parseTimestamp(currentGroup.timestamp)
+      const entryTime = parseTimestamp(entry.timestamp)
+      
+      if (entryTime - currentTime <= 10) {
+        currentGroup.content += ' ' + entry.content
+      } else {
+        grouped.push(currentGroup)
+        currentGroup = {
+          timestamp: entry.timestamp,
+          content: entry.content
+        }
+      }
+    }
+    grouped.push(currentGroup)
+    return grouped
+  }
+
+  const parseTimestamp = (timestamp: string): number => {
+    const [minutes, seconds] = timestamp.split(':').map(Number)
+    return minutes * 60 + seconds
   }
 
   if (!videoOverview || !videoOverview.chapters)
@@ -188,9 +246,28 @@ const VideoPage = () => {
           
           {activeTab === 'transcript' && (
             <div className="p-4">
-              <div className="text-gray-400 text-center">
-                Transcript feature coming soon...
-              </div>
+              {transcript === null ? (
+                <div className="text-gray-400 text-center">
+                  Loading transcript...
+                </div>
+              ) : transcript.length === 0 ? (
+                <div className="text-gray-400 text-center">
+                  Transcript not available for this video
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {groupTranscriptEntries(transcript).map((group, index) => (
+                    <div key={index} className="flex gap-3">
+                      <span className="text-blue-accent font-mono text-sm shrink-0">
+                        {group.timestamp}
+                      </span>
+                      <span className="text-white text-sm leading-relaxed">
+                        {group.content}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>
