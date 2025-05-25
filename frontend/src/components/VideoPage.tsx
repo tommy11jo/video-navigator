@@ -33,10 +33,10 @@ export interface TranscriptEntry {
   content: string
 }
 
-export interface ChatMessage {
+export interface QuestionAnswer {
   id: string
-  type: "user" | "assistant"
-  content: string
+  question: string
+  answer: string
   timestamp: Date
 }
 const VideoPage = () => {

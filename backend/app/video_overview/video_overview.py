@@ -348,12 +348,13 @@ async def get_transcript_by_video_id(video_id: str) -> List[TranscriptEntry]:
 #     return metadata
 
 @router.post("/chat/{video_id}")
-async def chat_about_video(
+async def answer_question_about_video(
     video_id: str, 
     request: Request,
     body: ChatRequest,
     supabase=Depends(get_supabase_client)
 ) -> ChatResponse:
+    """Answer questions about a video using its transcript and metadata"""
     user_api_key = body.user_api_key
     
     # Check rate limits and determine which API key to use
@@ -388,7 +389,7 @@ async def chat_about_video(
         )
         transcript_text = transcript_text[:max_transcript_length]
     
-    # Create chat messages for Claude
+    # Create Q&A messages for Claude
     system_prompt = f"""Answer questions using the video transcript. Be concise and entity-dense. Include citations as [CITE:seconds] when referencing specific moments - use only single timestamps, never ranges. Focus on concrete facts, names, numbers, and key concepts.
 
 This is a video titled "{video_metadata.title}" by {video_metadata.channel_title}. If present, use the speaker's name informally when referencing them in responses.
@@ -408,7 +409,7 @@ NOT: "The speaker discusses this [CITE:699-715]" """
         raise
     except Exception as e:
         error_str = str(e).lower()
-        logger.error(f"Error generating chat response: {str(e)}")
+        logger.error(f"Error generating Q&A response: {str(e)}")
         
         # Check for API key related errors
         if "api key" in error_str or "authentication" in error_str or "unauthorized" in error_str:
