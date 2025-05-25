@@ -224,7 +224,32 @@ async def generate_video_overview(
         assistant("Here is the JSON overview:\n{"),
     ]
     system_prompt = get_system_prompt(existing_chapters=chapters)
-    content = await get_claude_completion(messages, system_prompt, anthropic_client)
+    
+    try:
+        content = await get_claude_completion(messages, system_prompt, anthropic_client)
+    except HTTPException:
+        # Re-raise HTTP exceptions (like rate limits) as-is
+        raise
+    except Exception as e:
+        error_str = str(e).lower()
+        logger.error(f"Error generating video overview: {str(e)}")
+        
+        # Check for API key related errors
+        if "api key" in error_str or "authentication" in error_str or "unauthorized" in error_str:
+            raise HTTPException(
+                status_code=401,
+                detail="API key is missing or invalid. Please check your Anthropic API key configuration."
+            )
+        elif "rate limit" in error_str:
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded. Please try again later."
+            )
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail="Error generating video overview. Please try again."
+            )
 
     result = "{" + content
 
@@ -380,12 +405,29 @@ NOT: "The speaker discusses this [CITE:699-715]" """
     try:
         content = await get_claude_completion(messages, system_prompt, anthropic_client)
         return ChatResponse(answer=content)
+    except HTTPException:
+        # Re-raise HTTP exceptions (like rate limits) as-is
+        raise
     except Exception as e:
+        error_str = str(e).lower()
         logger.error(f"Error generating chat response: {str(e)}")
-        raise HTTPException(
-            status_code=500, 
-            detail="Error generating response. Please try again."
-        )
+        
+        # Check for API key related errors
+        if "api key" in error_str or "authentication" in error_str or "unauthorized" in error_str:
+            raise HTTPException(
+                status_code=401,
+                detail="API key is missing or invalid. Please check your Anthropic API key configuration."
+            )
+        elif "rate limit" in error_str:
+            raise HTTPException(
+                status_code=429,
+                detail="Rate limit exceeded. Please try again later."
+            )
+        else:
+            raise HTTPException(
+                status_code=500, 
+                detail="Error generating response. Please try again."
+            )
 
 
 # used for testing

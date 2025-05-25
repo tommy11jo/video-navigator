@@ -5,71 +5,12 @@ import axios, { AxiosError } from "axios"
 import { Loader2 } from "lucide-react"
 import { useUser } from "./UserContext"
 import ExampleList from "./ExampleList"
-
-type APIKeyModalProps = {
-  updateApiKey: (apiKey: string) => void
-  apiKey: string
-  isOpen: boolean
-  setIsOpen: (isOpen: boolean) => void
-}
-const APIKeyModal = ({
-  updateApiKey,
-  apiKey,
-  isOpen,
-  setIsOpen,
-}: APIKeyModalProps) => {
-  const [inputValue, setInputValue] = useState(apiKey)
-
-  useEffect(() => {
-    setInputValue(apiKey)
-  }, [apiKey])
-
-  if (!isOpen) return null
-
-  const handleSubmit = () => {
-    updateApiKey(inputValue)
-    setIsOpen(false)
-  }
-
-  return (
-    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 backdrop-blur-sm">
-      <div className="flex flex-col max-w-md bg-black p-4 rounded-lg shadow-lg border border-gray-700">
-        <span className="text-white">Set Anthropic API Key</span>
-        <p className="text-sm text-gray-400 mt-1 mb-2">
-          It's advised to set a usage limit on your key. The key is stored in
-          local storage and passed to my backend over HTTPS.
-        </p>
-        <input
-          type="text"
-          value={inputValue}
-          onChange={(e) => setInputValue(e.target.value)}
-          className="bg-white text-black border border-gray-300 p-2 mt-2 mb-4 w-full rounded"
-        />
-        <div className="flex justify-between">
-          <button
-            onClick={() => setIsOpen(false)}
-            className="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSubmit}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Save
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
+import ApiKeyButton from "./ApiKeyButton"
 const HomePage = () => {
-  const { apiKey, updateApiKey } = useUser()
+  const { apiKey } = useUser()
   const [videoUrl, setVideoUrl] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
-
-  const [isModalOpen, setIsModalOpen] = useState(false)
   const [recentOverviews, setRecentOverviews] = useState<
     { videoId: string; title: string }[]
   >([])
@@ -195,21 +136,8 @@ const HomePage = () => {
       <div className="container mx-auto px-1 pt-8">
         <div className="flex justify-between max-w-md mx-auto p-2">
           <span className="text-sm text-white">Free queries are limited!</span>
-          <button
-            className="text-sm text-gray-400 hover:text-white underline"
-            onClick={() => setIsModalOpen(true)}
-          >
-            Set Anthropic API Key
-          </button>
+          <ApiKeyButton />
         </div>
-        {isModalOpen && (
-          <APIKeyModal
-            updateApiKey={updateApiKey}
-            apiKey={apiKey}
-            isOpen={isModalOpen}
-            setIsOpen={setIsModalOpen}
-          />
-        )}
         <form onSubmit={handleSubmit} className="max-w-md mx-auto mb-8">
           <input
             ref={inputRef}
