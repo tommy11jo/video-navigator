@@ -23,5 +23,9 @@ The python youtube transcript api works locally but not in cloud environments. I
 
 ## Dev notes to self
 
-1. Backend runs on my own server. Run `docker compose up`
+1. Backend runs on my own server.
+   a. To rebuild, run `docker compose build --no-cache`
+   b. Then run `docker compose --profile production up`
+   c. run the docker
+
 2. Frontend runs on vercel. Run `vercel --prod`
