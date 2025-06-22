@@ -3,12 +3,12 @@ FROM python:3.11-slim
 WORKDIR /project
 
 COPY pyproject.toml poetry.lock* ./
+COPY ./app ./app
 
 RUN pip install poetry && \
     poetry config virtualenvs.create false && \
     poetry install --no-interaction --no-ansi
 
-COPY ./app ./app
 COPY .env.production .env.production
 
 
