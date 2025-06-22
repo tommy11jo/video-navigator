@@ -3,11 +3,10 @@ name = "backend"
 version = "0.1.0"
 description = ""
 authors = ["tom11my <tommy11jo@gmail.com>"]
-package-mode = false
 
 [tool.poetry.dependencies]
-python = "^3.10"
-youtube-transcript-api = "^0.6.2"
+python = ">=3.10,<3.14"
+youtube-transcript-api = "^1.1.0"
 playwright = "^1.46.0"
 google-api-python-client = "^2.144.0"
 python-dotenv = "^1.0.1"
