@@ -9,7 +9,7 @@ const Layout = () => {
           <div className="flex flex-col">
             <Link
               to="/"
-              className="text-lg font-bold hover:text-gray-300 mb-2 underline"
+              className="text-lg font-bold text-blue-accent hover:underline mb-2"
             >
               Youtube Video Navigator
             </Link>
@@ -30,14 +30,14 @@ const Layout = () => {
                 href="https://github.com/tommy11jo/video-navigator"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="text-white hover:text-gray-300 underline"
+                className="text-blue-accent hover:underline"
               >
                 Github
               </a>
 
               <Link
                 to="/about"
-                className="text-white hover:text-gray-300 underline"
+                className="text-blue-accent hover:underline"
               >
                 About
               </Link>
