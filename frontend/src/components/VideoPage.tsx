@@ -179,6 +179,7 @@ const VideoPage = () => {
             <TranscriptContainer
               videoId={videoId}
               onTimestampClick={handleTimestampClick}
+              currentTimeInS={currentTimeInS}
             />
           )}
 
