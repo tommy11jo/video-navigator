@@ -34,6 +34,7 @@ const OverviewContainer = ({
     }
 
     fetchVideoData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   if (isLoading) {
@@ -77,8 +78,8 @@ const OverviewContainer = ({
             index === currentChapterIndex ? "bg-gray-800 rounded-lg" : ""
           }`}
         >
-          <div className="p-1">
-            <h3 className="text-lg font-semibold mb-2 flex items-center">
+          <div className="px-3 py-2">
+            <h3 className="text-lg font-medium mb-1 flex items-center">
               <span
                 className="cursor-pointer mr-2 text-blue-accent hover:underline"
                 onClick={() => onKeyPointClick(chapter.key_points[0].time)}
@@ -86,20 +87,8 @@ const OverviewContainer = ({
                 {chapter.title}
               </span>
             </h3>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {chapter.associations.map(
-                (association: string, associationIndex: number) => (
-                  <span
-                    key={associationIndex}
-                    className="px-2 py-1 bg-gray-700 text-white text-xs rounded-full"
-                  >
-                    {association}
-                  </span>
-                )
-              )}
-            </div>
-            <div className="m-2">
-              <ul className="list-disc pl-5">
+            <div className="m-1">
+              <ul className="list-disc pl-2">
                 {chapter.key_points.map(
                   (keyPoint: KeyPoint, pointIndex: number) => (
                     <li key={pointIndex}>

@@ -20,7 +20,6 @@ export interface VideoOverview {
 export interface Chapter {
   title: string
   key_points: KeyPoint[]
-  associations: string[]
 }
 
 export interface KeyPoint {

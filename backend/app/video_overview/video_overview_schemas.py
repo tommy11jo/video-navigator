@@ -17,14 +17,12 @@ class KeyPoint(BaseModel):
 class Chapter(BaseModel):
     title: str
     key_points: List[KeyPoint]
-    associations: List[str]
 
 
 class ChapterData(BaseModel):
     title: str
     key_points: List[str]
     key_point_start_times: List[float]
-    associations: List[str]
 
 
 class VideoOverviewFunctionCallResponse(BaseModel):

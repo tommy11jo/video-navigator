@@ -58,7 +58,6 @@ For each chapter, output the following:
     - Key points are concise and entity dense, with concrete examples when relevant.
     - Key points can be a paraphrase or summary of a few sentences.
 - for each key point, output the start time of the beginning of the key point in the transcript.
-- 2-4 associations that a user might search or associate with this chapter. Each association should be a specific keyword or phrase.
 
 {chapters_info}"""
 
@@ -77,10 +76,6 @@ def get_example_output():
                     34,
                     55,
                 ],
-                associations=[
-                    "MVP",
-                    "Iteration over theoretical planning",
-                ],
             ),
             ChapterData(
                 title="Pre-launch Startup Goals",
@@ -93,9 +88,6 @@ def get_example_output():
                     150,
                     162,
                     251,
-                ],
-                associations=[
-                    "Iterative product development",
                 ],
             ),
             ChapterData(
@@ -110,11 +102,6 @@ def get_example_output():
                     275,
                     340,
                 ],
-                associations=[
-                    "Fear of negative user reactions",
-                    "Early adopters",
-                    "Imperfect products",
-                ],
             ),
             ChapterData(
                 title="Examples - Software MVP",
@@ -127,11 +114,6 @@ def get_example_output():
                     370,
                     378,
                     400,
-                ],
-                associations=[
-                    "limited functionality MVPs",
-                    "stripe",
-                    "airbnb",
                 ],
             ),
         ]
@@ -255,7 +237,6 @@ async def generate_video_overview(
                         chapter.key_points, chapter.key_point_start_times
                     )
                 ],
-                associations=chapter.associations,
             )
             for chapter in response.chapters
         ]
