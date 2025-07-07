@@ -5,7 +5,7 @@ import axios, { AxiosError } from "axios"
 import { Loader2 } from "lucide-react"
 import { useUser } from "./UserContext"
 import ExampleList from "./ExampleList"
-import ApiKeyButton from "./ApiKeyButton"
+
 const HomePage = () => {
   const { apiKey } = useUser()
   const [videoUrl, setVideoUrl] = useState("")
@@ -134,9 +134,8 @@ const HomePage = () => {
   return (
     <div className="min-h-full bg-black text-white">
       <div className="container mx-auto px-1 pt-8">
-        <div className="flex justify-between max-w-md mx-auto p-2">
+        <div className="flex max-w-md mx-auto p-2">
           <span className="text-sm text-white">Free queries are limited!</span>
-          <ApiKeyButton />
         </div>
         <form onSubmit={handleSubmit} className="max-w-md mx-auto mb-8">
           <input
