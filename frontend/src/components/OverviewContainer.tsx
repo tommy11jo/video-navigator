@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import axios from "axios"
 import { Loader2 } from "lucide-react"
 import { VideoOverview, Chapter, KeyPoint } from "./VideoPage"
+import { formatTime } from "../utils/formatTime"
 
 interface OverviewContainerProps {
   videoId: string
@@ -74,17 +75,23 @@ const OverviewContainer = ({
       {videoOverview.chapters.map((chapter: Chapter, index: number) => (
         <div
           key={index}
-          className={`text-sm ${
-            index === currentChapterIndex ? "bg-gray-800 rounded-lg" : ""
+          className={`text-sm relative ${
+            index === currentChapterIndex ? "bg-blue-accent/10" : ""
           }`}
         >
+          {index === currentChapterIndex && (
+            <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-blue-accent" />
+          )}
           <div className="px-3 py-2">
             <h3 className="text-lg font-medium mb-1 flex items-center">
               <span
                 className="cursor-pointer mr-2 text-blue-accent hover:underline"
                 onClick={() => onKeyPointClick(chapter.key_points[0].time)}
               >
-                {chapter.title}
+                {chapter.title}{" "}
+                <span className="text-blue-accent font-normal">
+                  ({formatTime(chapter.key_points[0].time)})
+                </span>
               </span>
             </h3>
             <div className="m-1">
@@ -96,7 +103,10 @@ const OverviewContainer = ({
                         className="cursor-pointer text-gray-300 hover:text-white hover:underline"
                         onClick={() => onKeyPointClick(keyPoint.time)}
                       >
-                        {keyPoint.text}
+                        {keyPoint.text}{" "}
+                        <span className="text-gray-300">
+                          ({formatTime(keyPoint.time)})
+                        </span>
                       </span>
                     </li>
                   )
