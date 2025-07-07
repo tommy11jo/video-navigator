@@ -11,3 +11,8 @@ export const formatTime = (timeInSeconds: number) => {
     return `${minutes}:${seconds.toString().padStart(2, "0")}`
   }
 }
+
+export const parseTimestamp = (timestamp: string): number => {
+  const [minutes, seconds] = timestamp.split(":").map(Number)
+  return minutes * 60 + seconds
+}

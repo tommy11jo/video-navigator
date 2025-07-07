@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from "react"
 import axios from "axios"
 import { Loader2 } from "lucide-react"
 import { TranscriptEntry } from "./VideoPage"
+import { parseTimestamp } from "../utils/formatTime"
 
 interface TranscriptContainerProps {
   videoId: string
@@ -101,10 +102,6 @@ const TranscriptContainer = ({
     return grouped
   }
 
-  const parseTimestamp = (timestamp: string): number => {
-    const [minutes, seconds] = timestamp.split(":").map(Number)
-    return minutes * 60 + seconds
-  }
 
   const groupedTranscript = transcript ? groupTranscriptEntries(transcript) : []
 
