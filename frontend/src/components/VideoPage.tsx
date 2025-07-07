@@ -1,12 +1,13 @@
 import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import YouTubeEmbed from "./VideoEmbed"
 import { useParams } from "react-router-dom"
-import axios from "axios"
 import { DateTime } from "luxon"
 import { useUser } from "./UserContext"
 import OverviewContainer from "./OverviewContainer"
 import TranscriptContainer from "./TranscriptContainer"
 import ChatContainer from "./ChatContainer"
+import { videoService } from "../services/video"
 import "../styles/custom-scrollbar.css"
 
 export interface VideoOverview {
@@ -47,43 +48,26 @@ const VideoPage = () => {
   const [activeTab, setActiveTab] = useState<
     "overview" | "transcript" | "chat"
   >("overview")
-  const [videoMetadata, setVideoMetadata] = useState<{
-    video_title?: string
-    channel_title?: string
-    published_iso?: string
-  } | null>(null)
 
-  // Fetch metadata once on mount
-  if (!videoMetadata && videoId) {
-    const fetchMetadata = async () => {
-      try {
-        const response = await axios.get<VideoOverview>(
-          `${import.meta.env.VITE_API_URL}/get-overview/${videoId}`
-        )
-        setVideoMetadata({
-          video_title: response.data.video_title,
-          channel_title: response.data.channel_title,
-          published_iso: response.data.published_iso
-        })
-      } catch (error) {
-        console.error("Error fetching video metadata:", error)
-        setVideoMetadata({})
-      }
-    }
-    fetchMetadata()
-  }
+  const {
+    data: videoOverview,
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: ["overview", videoId],
+    queryFn: () => videoService.fetchOverview(videoId!),
+    enabled: !!videoId,
+  })
 
   const handleKeyPointClick = (time: number) => {
     setSeekTimeInS(time)
   }
-
 
   const handleTimestampClick = (timestamp: string) => {
     const [minutes, seconds] = timestamp.split(":").map(Number)
     const timeInSeconds = minutes * 60 + seconds
     setSeekTimeInS(timeInSeconds)
   }
-
 
   const handleCitationClick = (seconds: number) => {
     setSeekTimeInS(seconds)
@@ -100,14 +84,16 @@ const VideoPage = () => {
           key={videoId}
         />
         <div className="card mt-4">
-          <span className="text-lg font-bold">{videoMetadata?.video_title || "Loading..."}</span>
+          <span className="text-lg font-bold">
+            {videoOverview?.video_title || "Loading..."}
+          </span>
           <div className="flex flex-row justify-between text-sm">
-            {videoMetadata?.channel_title && (
-              <span className="block mt-2">{videoMetadata.channel_title}</span>
+            {videoOverview?.channel_title && (
+              <span className="block mt-2">{videoOverview.channel_title}</span>
             )}
-            {videoMetadata?.published_iso && (
+            {videoOverview?.published_iso && (
               <span className="block mt-2">
-                {DateTime.fromISO(videoMetadata.published_iso).toLocaleString(
+                {DateTime.fromISO(videoOverview.published_iso).toLocaleString(
                   DateTime.DATE_FULL
                 )}
               </span>
@@ -169,9 +155,11 @@ const VideoPage = () => {
         <div className="overflow-auto h-[72svh] border-2 border-gray-700 rounded-lg text-sm custom-scrollbar">
           {activeTab === "overview" && (
             <OverviewContainer
-              videoId={videoId}
+              videoOverview={videoOverview}
               currentTimeInS={currentTimeInS}
               onKeyPointClick={handleKeyPointClick}
+              isLoading={isLoading}
+              error={error}
             />
           )}
 

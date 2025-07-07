@@ -1,42 +1,24 @@
-import { useState, useEffect } from "react"
-import axios from "axios"
+import { useState } from "react"
 import { Loader2 } from "lucide-react"
 import { VideoOverview, Chapter, KeyPoint } from "./VideoPage"
 import { formatTime } from "../utils/formatTime"
 
 interface OverviewContainerProps {
-  videoId: string
+  videoOverview: VideoOverview | null | undefined
   currentTimeInS: number
   onKeyPointClick: (time: number) => void
+  isLoading?: boolean
+  error?: Error | null
 }
 
 const OverviewContainer = ({
-  videoId,
+  videoOverview,
   currentTimeInS,
   onKeyPointClick,
+  isLoading = false,
+  error = null,
 }: OverviewContainerProps) => {
-  const [videoOverview, setVideoOverview] = useState<VideoOverview | null>(null)
   const [currentChapterIndex, setCurrentChapterIndex] = useState(-1)
-  const [isLoading, setIsLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchVideoData = async () => {
-      setIsLoading(true)
-      try {
-        const response = await axios.get<VideoOverview>(
-          `${import.meta.env.VITE_API_URL}/get-overview/${videoId}`
-        )
-        setVideoOverview(response.data)
-      } catch (error) {
-        console.error("Error fetching video overview:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchVideoData()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
 
   if (isLoading) {
     return (
@@ -47,7 +29,7 @@ const OverviewContainer = ({
     )
   }
 
-  if (!videoOverview || !videoOverview.chapters) {
+  if (error || !videoOverview || !videoOverview.chapters) {
     return (
       <div className="p-4 text-gray-400 text-center">
         Failed to load video overview

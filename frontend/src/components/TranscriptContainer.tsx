@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from "react"
-import axios from "axios"
+import { useQuery } from "@tanstack/react-query"
 import { Loader2 } from "lucide-react"
 import { TranscriptEntry } from "./VideoPage"
 import { parseTimestamp } from "../utils/formatTime"
+import { videoService } from "../services/video"
 
 interface TranscriptContainerProps {
   videoId: string
@@ -15,34 +16,17 @@ const TranscriptContainer = ({
   onTimestampClick,
   currentTimeInS,
 }: TranscriptContainerProps) => {
-  const [transcript, setTranscript] = useState<TranscriptEntry[] | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [hasError, setHasError] = useState(false)
   const [currentTranscriptIndex, setCurrentTranscriptIndex] = useState(-1)
   const activeElementRef = useRef<HTMLDivElement>(null)
 
-  useEffect(() => {
-    const fetchTranscript = async () => {
-      setIsLoading(true)
-      setHasError(false)
-
-      try {
-        const response = await axios.get<TranscriptEntry[]>(
-          `${import.meta.env.VITE_API_URL}/get-transcript/${videoId}`
-        )
-        setTranscript(response.data)
-      } catch (error) {
-        console.error("Error fetching transcript:", error)
-        setTranscript(null)
-        setHasError(true)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchTranscript()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  const {
+    data: transcript,
+    isLoading,
+    error: hasError,
+  } = useQuery({
+    queryKey: ["transcript", videoId],
+    queryFn: () => videoService.fetchTranscript(videoId),
+  })
 
   // Scroll active element into view if it's out of view
   useEffect(() => {
@@ -101,7 +85,6 @@ const TranscriptContainer = ({
     grouped.push(currentGroup)
     return grouped
   }
-
 
   const groupedTranscript = transcript ? groupTranscriptEntries(transcript) : []
 

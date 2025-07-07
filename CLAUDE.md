@@ -18,7 +18,6 @@ Video Navigator is a full-stack application that helps users navigate and unders
 ```bash
 cd frontend
 npm run dev          # Start development server
-npm run lint         # Run ESLint
 ```
 
 ### Backend Development
