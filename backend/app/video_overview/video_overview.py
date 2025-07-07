@@ -1,9 +1,8 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, HTTPException
 from pydantic import ValidationError, BaseModel
 
 from .video_overview_deps import (
     assistant,
-    get_anthropic_client,
     user,
 )
 from .video_overview_schemas import (
@@ -20,7 +19,6 @@ from .video_overview_schemas import (
 from typing import List, Optional
 import logging
 from .video_overview_deps import get_supabase_client
-from fastapi import HTTPException
 from .video_overview_services import (
     net_api_limit_reached,
     incr_api_usage,
@@ -36,11 +34,26 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 testing = False
-chapter_min_range = 3 if testing else 5
-chapter_max_range = 5 if testing else 30
 
 
-def get_system_prompt(existing_chapters: List[str] | None = None):
+def get_chapter_range(transcript_length: int) -> tuple[int, int]:
+    """Calculate appropriate chapter range based on transcript length"""
+    if testing:
+        return (3, 5)
+    
+    # Assume ~1000 chars per minute of speech
+    # Target 4-8 min chapters
+    minutes = transcript_length / 1000
+    
+    min_chapters = max(3, int(minutes / 8))
+    max_chapters = max(5, int(minutes / 4))
+    
+    min_chapters = min(min_chapters, 30)
+    max_chapters = min(max_chapters, 30)
+    
+    return (min_chapters, max_chapters)
+
+def get_system_prompt(transcript_length: int, existing_chapters: List[str] | None = None):
     chapters_str = "\n".join(existing_chapters)
     chapters_info = (
         f"""The existing chapters are:
@@ -48,6 +61,9 @@ def get_system_prompt(existing_chapters: List[str] | None = None):
         if existing_chapters
         else ""
     )
+    
+    chapter_min_range, chapter_max_range = get_chapter_range(transcript_length)
+    
     return f"""Your job is to generate a video overview for the provided transcript. 
 The transcript might contain typos. Do your best to infer the correct text.
 Output about {chapter_min_range}-{chapter_max_range} chapters depending on the length and density of the transcript.
@@ -172,7 +188,8 @@ async def generate_video_overview(
     video_metadata = await get_video_metadata(video_id)
     chapters = [data.title for data in video_metadata.chapters]
     if testing:
-        chapters = chapters[:chapter_max_range]
+        _, max_chapters = get_chapter_range(0)
+        chapters = chapters[:max_chapters]
     max_transcript_length = 20_000 if testing else 200_000
     if len(transcript_text) > max_transcript_length:
         logger.warning(
@@ -189,7 +206,7 @@ async def generate_video_overview(
         user(f"Here is the transcript: \n{transcript_text}"),
         assistant("Here is the JSON overview:\n{"),
     ]
-    system_prompt = get_system_prompt(existing_chapters=chapters)
+    system_prompt = get_system_prompt(len(transcript_text), existing_chapters=chapters)
     
     try:
         content = await get_claude_completion(messages, system_prompt, anthropic_client)
