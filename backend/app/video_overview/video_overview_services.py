@@ -180,7 +180,7 @@ async def incr_api_usage(supabase):
 async def get_claude_completion(messages, system_prompt, anthropic_client) -> str:
     try:
         completion = anthropic_client.messages.create(
-            model="claude-3-5-sonnet-20240620",
+            model="claude-sonnet-4-20250514",
             system=system_prompt,
             messages=messages,
             max_tokens=3000,
@@ -201,18 +201,16 @@ async def get_claude_completion(messages, system_prompt, anthropic_client) -> st
 
 
 async def get_anthropic_client_with_rate_limiting(
-    request: Request, 
-    user_api_key: str | None, 
-    supabase
+    request: Request, user_api_key: str | None, supabase
 ) -> tuple[object, bool]:
     """
     Determine which Anthropic client to use based on rate limits and API key availability.
-    
+
     Returns:
         tuple: (anthropic_client, should_increment_user_rate_limit)
     """
     from .video_overview_deps import get_anthropic_client
-    
+
     user_api_limit_reached = await user_rate_limit_exceeded(request, supabase)
     if user_api_limit_reached:
         if not user_api_key:
@@ -222,7 +220,7 @@ async def get_anthropic_client_with_rate_limiting(
             )
         else:
             return get_anthropic_client(True, user_api_key), False
- 
+
     else:
         api_limit_reached = await net_api_limit_reached(supabase)
         if not api_limit_reached:
