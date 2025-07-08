@@ -1,6 +1,7 @@
 import os
 from anthropic import RateLimitError
 import re
+from openai import OpenAI
 
 from ..config import is_prod
 
@@ -183,7 +184,7 @@ async def get_claude_completion(messages, system_prompt, anthropic_client) -> st
             model="claude-sonnet-4-20250514",
             system=system_prompt,
             messages=messages,
-            max_tokens=3000,
+            max_tokens=20_000,
             temperature=0.2,
         )
 

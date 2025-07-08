@@ -34,6 +34,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 testing = False
+# Limit transcript length to ~240k characters (4 hours)
+MAX_TRANSCRIPT_LENGTH = 20_000 if testing else 240_000
 
 
 def get_chapter_range(transcript_length: int) -> tuple[int, int]:
@@ -69,7 +71,7 @@ The transcript might contain typos. Do your best to infer the correct text.
 Output about {chapter_min_range}-{chapter_max_range} chapters depending on the length and density of the transcript.
 For each chapter, output the following:
 - a chapter title that encapsulates the current section
-- 2-8 key points to provide an overview of the chapter. Each key point is a sentence that is either a direct quote or an essential fact / detail.
+- 2-6 key points to provide an overview of the chapter. Each key point is a sentence that is either a direct quote or an essential fact / detail.
     - Quotes are clear and information dense.
     - Key points are concise and entity dense, with concrete examples when relevant.
     - Key points can be a paraphrase or summary of a few sentences.
@@ -190,12 +192,11 @@ async def generate_video_overview(
     if testing:
         _, max_chapters = get_chapter_range(0)
         chapters = chapters[:max_chapters]
-    max_transcript_length = 20_000 if testing else 200_000
-    if len(transcript_text) > max_transcript_length:
+    if len(transcript_text) > MAX_TRANSCRIPT_LENGTH:
         logger.warning(
-            f"transcript length is {len(transcript_text)}, truncating to {max_transcript_length}"
+            f"transcript length is {len(transcript_text)}, truncating to {MAX_TRANSCRIPT_LENGTH}"
         )
-        transcript_text = transcript_text[:max_transcript_length]
+        transcript_text = transcript_text[:MAX_TRANSCRIPT_LENGTH]
 
     example_output = get_example_output()
     messages = [
@@ -379,13 +380,12 @@ async def answer_question_about_video(
     # Convert transcript to timestamped text format
     transcript_text = get_timestamped_transcript_text(transcript)
     
-    # Limit transcript length to ~30k characters
-    max_transcript_length = 30_000
-    if len(transcript_text) > max_transcript_length:
+
+    if len(transcript_text) > MAX_TRANSCRIPT_LENGTH:
         logger.warning(
-            f"transcript length is {len(transcript_text)}, truncating to {max_transcript_length}"
+            f"transcript length is {len(transcript_text)}, truncating to {MAX_TRANSCRIPT_LENGTH}"
         )
-        transcript_text = transcript_text[:max_transcript_length]
+        transcript_text = transcript_text[:MAX_TRANSCRIPT_LENGTH]
     
     # Create Q&A messages for Claude
     system_prompt = f"""Answer questions using the video transcript. Be concise and entity-dense. Include citations as [CITE:seconds] when referencing specific moments - use only single timestamps, never ranges. Focus on concrete facts, names, numbers, and key concepts.
