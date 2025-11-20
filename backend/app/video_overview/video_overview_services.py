@@ -11,11 +11,13 @@ from .video_overview_deps import get_supabase_client
 from fastapi import Depends, HTTPException, Request
 from youtube_transcript_api import YouTubeTranscriptApi
 import logging
+import random
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-TOTAL_API_USAGE_LIMIT = 300 
+TOTAL_API_USAGE_LIMIT = 500 
 USER_RATE_LIMIT = 10
 
 
@@ -35,10 +37,22 @@ def build_webshare_proxy_from_env() -> dict | None:
     Returns a proxies dict for use with requests/youtube_transcript_api,
     or None if required env vars are not set.
     """
+    
     username = os.getenv("WEBSHARE_PROXY_USERNAME")
     password = os.getenv("WEBSHARE_PROXY_PASSWORD")
-    host = os.getenv("WEBSHARE_PROXY_HOST")
-    port = os.getenv("WEBSHARE_PROXY_PORT")
+    
+    # Support multiple proxy servers - try rotating through them
+    proxy_list_str = os.getenv("WEBSHARE_PROXY_LIST")
+    if proxy_list_str:
+        # Format: "host1:port1,host2:port2,host3:port3"
+        proxies = [p.strip() for p in proxy_list_str.split(",")]
+        selected = random.choice(proxies)
+        host, port = selected.split(":")
+        logger.info(f"Using random proxy from list: {host}:{port}")
+    else:
+        # Fallback to single proxy
+        host = os.getenv("WEBSHARE_PROXY_HOST")
+        port = os.getenv("WEBSHARE_PROXY_PORT")
     
     logger.info(f"Proxy env vars - username: {'set' if username else 'missing'}, password: {'set' if password else 'missing'}, host: {'set' if host else 'missing'}, port: {'set' if port else 'missing'}")
     
@@ -54,21 +68,17 @@ async def get_transcript(video_id: str) -> Transcript | None:
     # youtube transcript api works locally but not in cloud envs
     # https://github.com/jdepoix/youtube-transcript-api/issues/303
     try:
-        logger.info(f"Fetching transcript for video {video_id}, is_prod: {is_prod()}")
+        logger.info(f"Fetching transcript for video {video_id}")
         if is_prod():
             proxy = build_webshare_proxy_from_env()
-            if proxy:
-                host = os.getenv("WEBSHARE_PROXY_HOST")
-                port = os.getenv("WEBSHARE_PROXY_PORT")
-                logger.info(f"Using Webshare proxy host {host}:{port}")
-            else:
+            if not proxy:
                 logger.warning("Production environment detected but Webshare proxy env vars not set. Transcript fetching may fail.")
+            
             transcript = YouTubeTranscriptApi.get_transcript(
                 video_id,
                 proxies=proxy if proxy else None,
             )
         else:
-            logger.info("Not in production, fetching transcript without proxy")
             transcript = YouTubeTranscriptApi.get_transcript(video_id)
 
         if not transcript:
@@ -205,7 +215,8 @@ async def incr_api_usage(supabase):
 async def get_claude_completion(messages, system_prompt, anthropic_client) -> str:
     try:
         completion = anthropic_client.messages.create(
-            model="claude-sonnet-4-20250514",
+            # model="claude-sonnet-4-5-20250929",
+            model="claude-haiku-4-5-20251001",
             system=system_prompt,
             messages=messages,
             max_tokens=20_000,
