@@ -15,7 +15,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-TOTAL_API_USAGE_LIMIT = 100
+TOTAL_API_USAGE_LIMIT = 300 
 USER_RATE_LIMIT = 10
 
 
@@ -29,18 +29,46 @@ def normalize_spacing(text: str) -> str:
     return text
 
 
+def build_webshare_proxy_from_env() -> dict | None:
+    """Build Webshare proxy configuration from environment variables.
+    
+    Returns a proxies dict for use with requests/youtube_transcript_api,
+    or None if required env vars are not set.
+    """
+    username = os.getenv("WEBSHARE_PROXY_USERNAME")
+    password = os.getenv("WEBSHARE_PROXY_PASSWORD")
+    host = os.getenv("WEBSHARE_PROXY_HOST")
+    port = os.getenv("WEBSHARE_PROXY_PORT")
+    
+    logger.info(f"Proxy env vars - username: {'set' if username else 'missing'}, password: {'set' if password else 'missing'}, host: {'set' if host else 'missing'}, port: {'set' if port else 'missing'}")
+    
+    if not all([username, password, host, port]):
+        logger.error("Missing required Webshare proxy environment variables")
+        return None
+    
+    proxy_url = f"http://{username}:{password}@{host}:{port}"
+    return {"http": proxy_url, "https": proxy_url}
+
+
 async def get_transcript(video_id: str) -> Transcript | None:
     # youtube transcript api works locally but not in cloud envs
     # https://github.com/jdepoix/youtube-transcript-api/issues/303
     try:
+        logger.info(f"Fetching transcript for video {video_id}, is_prod: {is_prod()}")
         if is_prod():
-            username = os.getenv("PROXY_USERNAME")
-            password = os.getenv("PROXY_PASSWORD")
-            proxy_url = f"http://{username}:{password}@gate.smartproxy.com:10001"
-            proxy = {"http": proxy_url, "https": proxy_url}
-            transcript = YouTubeTranscriptApi.get_transcript(video_id, proxies=proxy)
-
+            proxy = build_webshare_proxy_from_env()
+            if proxy:
+                host = os.getenv("WEBSHARE_PROXY_HOST")
+                port = os.getenv("WEBSHARE_PROXY_PORT")
+                logger.info(f"Using Webshare proxy host {host}:{port}")
+            else:
+                logger.warning("Production environment detected but Webshare proxy env vars not set. Transcript fetching may fail.")
+            transcript = YouTubeTranscriptApi.get_transcript(
+                video_id,
+                proxies=proxy if proxy else None,
+            )
         else:
+            logger.info("Not in production, fetching transcript without proxy")
             transcript = YouTubeTranscriptApi.get_transcript(video_id)
 
         if not transcript:
@@ -120,19 +148,17 @@ async def get_video_metadata(video_id) -> VideoMetadata:
 async def user_rate_limit_exceeded(
     request: Request, supabase=Depends(get_supabase_client)
 ):
-    cf_connecting_ip = request.headers.get("cf-connecting-ip")
-    if not cf_connecting_ip:
-        if is_prod():
-            raise HTTPException(
-                status_code=500, detail="Unexpected error: no cf-connecting-ip"
-            )
-        else:
-            # When running locally, assume rate limit is exceeded
-            return True
+    # Get client IP from request
+    client_ip = request.client.host if request.client else None
+    if not client_ip:
+        # If no client IP available, don't enforce rate limit
+        logger.warning("No client IP available for rate limiting")
+        return False
+    
     result = (
         supabase.table("rate_limits")
         .select("count")
-        .eq("ip", cf_connecting_ip)
+        .eq("ip", client_ip)
         .execute()
     )
     if not result.data:
@@ -142,24 +168,22 @@ async def user_rate_limit_exceeded(
 
 
 async def incr_user_rate_limit(request: Request, supabase=Depends(get_supabase_client)):
-    # Assumption: this header is guaranteed to exist when request comes from cloudflare tunnel
-    cf_connecting_ip = request.headers.get("cf-connecting-ip")
-    if not cf_connecting_ip:
-        if is_prod():
-            raise HTTPException(
-                status_code=500, detail="Unexpected error: no cf-connecting-ip"
-            )
-        else:
-            return
+    # Get client IP from request
+    client_ip = request.client.host if request.client else None
+    if not client_ip:
+        # If no client IP available, skip rate limit increment
+        logger.warning("No client IP available for rate limit increment")
+        return
+    
     result = (
         supabase.table("rate_limits")
         .select("count")
-        .eq("ip", cf_connecting_ip)
+        .eq("ip", client_ip)
         .execute()
     )
     new_count = result.data[0]["count"] + 1 if len(result.data) > 0 else 1
     supabase.table("rate_limits").update({"count": new_count}).eq(
-        "ip", cf_connecting_ip
+        "ip", client_ip
     ).execute()
 
 

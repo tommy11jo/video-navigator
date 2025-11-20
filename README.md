@@ -21,11 +21,10 @@ Inspired by Bret Victor's dynamic "[poster comic strip](https://youtu.be/uI7J3II
 
 The python youtube transcript api works locally but not in cloud environments. I think youtube blocks cloud ip addresses. As a workaround, I use proxies. This is not a paid product and is for helping others learn better, so I think it's justified.
 
+Using webshare as a proxy now.
+
 ## Dev notes to self
 
-1. Backend runs on my own server.
-   a. To rebuild, run `docker compose build --no-cache`
-   b. Then run `docker compose --profile production up`
-   c. run the docker
+1. Backend runs on railway
 
 2. Frontend runs on vercel. Run `vercel --prod`

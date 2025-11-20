@@ -67,6 +67,7 @@ def get_system_prompt(transcript_length: int, existing_chapters: List[str] | Non
     chapter_min_range, chapter_max_range = get_chapter_range(transcript_length)
     
     return f"""Your job is to generate a video overview for the provided transcript. 
+Make sure to create chapters across the entire transcript.
 The transcript might contain typos. Do your best to infer the correct text.
 Output about {chapter_min_range}-{chapter_max_range} chapters depending on the length and density of the transcript.
 For each chapter, output the following:
