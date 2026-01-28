@@ -21,7 +21,19 @@ Inspired by Bret Victor's dynamic "[poster comic strip](https://youtu.be/uI7J3II
 
 The python youtube transcript api works locally but not in cloud environments. I think youtube blocks cloud ip addresses. As a workaround, I use proxies. This is not a paid product and is for helping others learn better, so I think it's justified.
 
-Using webshare as a proxy now.
+### Proxy Setup (Decodo)
+
+Using Decodo (formerly Smartproxy) residential proxies with Pay As You Go pricing ($3.5/GB).
+
+**Required env vars for production:**
+```
+DECODO_PROXY_USERNAME=your_username
+DECODO_PROXY_PASSWORD=your_password
+```
+
+Get credentials from Decodo dashboard > Residential Proxies > Authentication.
+
+Endpoint: `gate.decodo.com:10001`
 
 ## Dev notes to self
 
