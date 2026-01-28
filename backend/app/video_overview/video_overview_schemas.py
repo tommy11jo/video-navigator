@@ -9,6 +9,19 @@ class ChatRole(str, Enum):
     ASSISTANT = "assistant"
 
 
+class ModelChoice(str, Enum):
+    HAIKU_4_5 = "haiku-4-5"
+    SONNET_4_5 = "sonnet-4-5"
+    OPUS_4_5 = "opus-4-5"
+
+
+MODEL_IDS = {
+    ModelChoice.HAIKU_4_5: "claude-haiku-4-5",
+    ModelChoice.SONNET_4_5: "claude-sonnet-4-5",
+    ModelChoice.OPUS_4_5: "claude-opus-4-5",
+}
+
+
 class KeyPoint(BaseModel):
     text: str
     time: float
@@ -74,6 +87,7 @@ class TranscriptEntry(BaseModel):
 class ChatRequest(BaseModel):
     question: str
     user_api_key: Optional[str] = None
+    model: Optional[ModelChoice] = None
 
 
 class ChatResponse(BaseModel):

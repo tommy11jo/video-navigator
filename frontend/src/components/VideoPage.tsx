@@ -41,7 +41,7 @@ export interface QuestionAnswer {
 }
 const VideoPage = () => {
   const { videoId } = useParams<{ videoId: string }>()
-  const { apiKey } = useUser()
+  const { apiKey, model } = useUser()
 
   const [currentTimeInS, setCurrentTimeInS] = useState(0)
   const [seekTimeInS, setSeekTimeInS] = useState(-1)
@@ -175,6 +175,7 @@ const VideoPage = () => {
             <ChatContainer
               videoId={videoId}
               apiKey={apiKey}
+              model={model}
               onCitationClick={handleCitationClick}
             />
           )}

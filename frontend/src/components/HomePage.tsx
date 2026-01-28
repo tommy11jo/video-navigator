@@ -7,10 +7,11 @@ import { useUser } from "./UserContext"
 import ExampleList from "./ExampleList"
 
 const HomePage = () => {
-  const { apiKey } = useUser()
+  const { apiKey, model } = useUser()
   const [videoUrl, setVideoUrl] = useState("")
   const [isGenerating, setIsGenerating] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
+  const [showApiKeyPrompt, setShowApiKeyPrompt] = useState(false)
   const [recentOverviews, setRecentOverviews] = useState<
     { videoId: string; title: string }[]
   >([])
@@ -82,7 +83,8 @@ const HomePage = () => {
         .post(
           `${import.meta.env.VITE_API_URL}/generate-overview/${videoId}`,
           {
-            user_api_key: apiKey,
+            user_api_key: apiKey || undefined,
+            model: apiKey ? model : undefined,
           },
           {
             headers: {
@@ -98,9 +100,15 @@ const HomePage = () => {
     },
     onError: (error: AxiosError) => {
       console.error("Error generating overview:", error)
-      setErrorMessage(
+      const status = error.response?.status
+      const detail =
         (error.response?.data as { detail: string })?.detail || "Unknown error"
-      )
+
+      // Show API key prompt for rate limit (429) or too large (413) errors
+      if (status === 429 || status === 413) {
+        setShowApiKeyPrompt(true)
+      }
+      setErrorMessage(detail)
       setIsGenerating(false)
     },
   })
@@ -108,6 +116,7 @@ const HomePage = () => {
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setErrorMessage("")
+    setShowApiKeyPrompt(false)
     let urlObj: URL
     try {
       urlObj = new URL(videoUrl)
@@ -135,7 +144,9 @@ const HomePage = () => {
     <div className="min-h-full bg-black text-white">
       <div className="container mx-auto px-1 pt-8">
         <div className="flex max-w-md mx-auto p-2">
-          <span className="text-sm text-white">Free queries are limited!</span>
+          <span className="text-sm text-gray-400">
+            250 free video summaries available (max ~2 hours each). Add your Claude API key for unlimited access.
+          </span>
         </div>
         <form onSubmit={handleSubmit} className="max-w-md mx-auto mb-8">
           <input
@@ -163,7 +174,14 @@ const HomePage = () => {
             </button>
           </div>
           {errorMessage && (
-            <p className="text-red-500 text-sm mt-2">{errorMessage}</p>
+            <div className="mt-4 p-3 bg-red-900/30 border border-red-700 rounded-md">
+              <p className="text-red-400 text-sm">{errorMessage}</p>
+              {showApiKeyPrompt && !apiKey && (
+                <p className="text-gray-300 text-sm mt-2">
+                  Add your Claude API key above to continue using the service.
+                </p>
+              )}
+            </div>
           )}
         </form>
         <div className="mt-8 max-w-md mx-auto">

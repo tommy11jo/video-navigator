@@ -3,31 +3,38 @@ import { videoService } from "../services/video"
 import ChatInput from "./ChatInput"
 import ChatResponse from "./ChatResponse"
 
+import { ModelChoice } from "./UserContext"
+
 interface ChatContainerProps {
   videoId: string
   apiKey: string | null
+  model: ModelChoice
   onCitationClick: (seconds: number) => void
 }
 
 const ChatContainer = ({
   videoId,
   apiKey,
+  model,
   onCitationClick,
 }: ChatContainerProps) => {
   const chatMutation = useMutation({
     mutationFn: ({
       question,
       userApiKey,
+      userModel,
     }: {
       question: string
       userApiKey?: string
-    }) => videoService.chatWithVideo(videoId, question, userApiKey),
+      userModel?: ModelChoice
+    }) => videoService.chatWithVideo(videoId, question, userApiKey, userModel),
   })
 
   const handleSubmit = (question: string) => {
     chatMutation.mutate({
       question,
       userApiKey: apiKey ?? undefined,
+      userModel: apiKey ? model : undefined,
     })
   }
 

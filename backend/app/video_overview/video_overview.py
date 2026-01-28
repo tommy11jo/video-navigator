@@ -11,6 +11,7 @@ from .video_overview_schemas import (
     ChatRequest,
     ChatResponse,
     KeyPoint,
+    ModelChoice,
     Transcript,
     TranscriptEntry,
     VideoOverview,
@@ -20,14 +21,12 @@ from typing import List, Optional
 import logging
 from .video_overview_deps import get_supabase_client
 from .video_overview_services import (
-    net_api_limit_reached,
     incr_api_usage,
     get_claude_completion,
     get_transcript,
     get_video_metadata,
-    incr_user_rate_limit,
-    user_rate_limit_exceeded,
     get_anthropic_client_with_rate_limiting,
+    MAX_FREE_TIER_TRANSCRIPT_LENGTH,
 )
 
 logger = logging.getLogger(__name__)
@@ -150,6 +149,7 @@ def get_timestamped_transcript_text(transcript: Transcript):
 
 class GenerateOverviewRequest(BaseModel):
     user_api_key: Optional[str] = None
+    model: Optional[ModelChoice] = None
 
 
 # test url: https://www.youtube.com/watch?v=C27RVio2rOs
@@ -166,20 +166,7 @@ async def generate_video_overview(
     if existing_overview:
         return existing_overview
 
-    anthropic_client, should_increment_user_rate_limit = await get_anthropic_client_with_rate_limiting(
-        request, user_api_key, supabase
-    )
-    
-    if should_increment_user_rate_limit:
-        await incr_user_rate_limit(request, supabase)
-
-    logger.info(f"Generate new video overview for video_id: {video_id}")
-    await incr_api_usage(supabase)
-    # Note: for now I increment usage limits before even testing if the transcript is available
-    # to prevent an attacker from repeatedly hitting the transcript API
-    # TODO: This is unideal
-
-
+    # Get transcript first to check length before rate limiting
     transcript = await get_transcript(video_id)
     if not transcript:
         raise HTTPException(
@@ -187,6 +174,21 @@ async def generate_video_overview(
             detail="Unable to process request. Transcript not available for the given video ID.",
         )
     transcript_text = get_timestamped_transcript_text(transcript)
+
+    # Check if video is too large for free tier (only applies to users without API key)
+    if not user_api_key and len(transcript_text) > MAX_FREE_TIER_TRANSCRIPT_LENGTH:
+        raise HTTPException(
+            status_code=413,
+            detail="This video is too long for the free tier (over 2 hours). Please add your Claude API key to process longer videos.",
+        )
+
+    anthropic_client, should_increment_usage = await get_anthropic_client_with_rate_limiting(
+        request, user_api_key, supabase
+    )
+
+    logger.info(f"Generate new video overview for video_id: {video_id}")
+    if should_increment_usage:
+        await incr_api_usage(supabase)
 
     video_metadata = await get_video_metadata(video_id)
     chapters = [data.title for data in video_metadata.chapters]
@@ -209,9 +211,12 @@ async def generate_video_overview(
         assistant("Here is the JSON overview:\n{"),
     ]
     system_prompt = get_system_prompt(len(transcript_text), existing_chapters=chapters)
-    
+
+    # Only use user's model choice if they provided an API key
+    model_choice = body.model if body.user_api_key else None
+
     try:
-        content = await get_claude_completion(messages, system_prompt, anthropic_client)
+        content = await get_claude_completion(messages, system_prompt, anthropic_client, model_choice)
     except HTTPException:
         # Re-raise HTTP exceptions (like rate limits) as-is
         raise
@@ -349,24 +354,14 @@ async def get_transcript_by_video_id(video_id: str) -> List[TranscriptEntry]:
 
 @router.post("/chat/{video_id}")
 async def answer_question_about_video(
-    video_id: str, 
+    video_id: str,
     request: Request,
     body: ChatRequest,
     supabase=Depends(get_supabase_client)
 ) -> ChatResponse:
     """Answer questions about a video using its transcript and metadata"""
     user_api_key = body.user_api_key
-    
-    # Check rate limits and determine which API key to use
-    anthropic_client, should_increment_user_rate_limit = await get_anthropic_client_with_rate_limiting(
-        request, user_api_key, supabase
-    )
-    
-    if should_increment_user_rate_limit:
-        await incr_user_rate_limit(request, supabase)
 
-    await incr_api_usage(supabase)
-    
     # Get transcript for context
     transcript = await get_transcript(video_id)
     if not transcript:
@@ -374,13 +369,27 @@ async def answer_question_about_video(
             status_code=422,
             detail="Unable to process request. Transcript not available for the given video ID.",
         )
-    
-    # Get video metadata for context
-    video_metadata = await get_video_metadata(video_id)
-    
+
     # Convert transcript to timestamped text format
     transcript_text = get_timestamped_transcript_text(transcript)
-    
+
+    # Check if video is too large for free tier (only applies to users without API key)
+    if not user_api_key and len(transcript_text) > MAX_FREE_TIER_TRANSCRIPT_LENGTH:
+        raise HTTPException(
+            status_code=413,
+            detail="This video is too long for the free tier (over 2 hours). Please add your Claude API key to process longer videos.",
+        )
+
+    # Check rate limits and determine which API key to use
+    anthropic_client, should_increment_usage = await get_anthropic_client_with_rate_limiting(
+        request, user_api_key, supabase
+    )
+
+    if should_increment_usage:
+        await incr_api_usage(supabase)
+
+    # Get video metadata for context
+    video_metadata = await get_video_metadata(video_id)
 
     if len(transcript_text) > MAX_TRANSCRIPT_LENGTH:
         logger.warning(
@@ -400,8 +409,11 @@ NOT: "The speaker discusses this [CITE:699-715]" """
         user(f"Here is the video transcript with timestamps:\n\n{transcript_text}\n\nQuestion: {body.question}")
     ]
     
+    # Only use user's model choice if they provided an API key
+    model_choice = body.model if body.user_api_key else None
+
     try:
-        content = await get_claude_completion(messages, system_prompt, anthropic_client)
+        content = await get_claude_completion(messages, system_prompt, anthropic_client, model_choice)
         return ChatResponse(answer=content)
     except HTTPException:
         # Re-raise HTTP exceptions (like rate limits) as-is

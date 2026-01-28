@@ -5,8 +5,8 @@ from openai import OpenAI
 
 from ..config import is_prod
 
-from .video_overview_deps import get_youtube_client
-from .video_overview_schemas import Moment, Transcript, VideoMetadata
+from .video_overview_deps import get_youtube_client, get_anthropic_client
+from .video_overview_schemas import Moment, Transcript, VideoMetadata, ModelChoice, MODEL_IDS
 from .video_overview_deps import get_supabase_client
 from fastapi import Depends, HTTPException, Request
 from youtube_transcript_api import YouTubeTranscriptApi
@@ -17,8 +17,9 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-TOTAL_API_USAGE_LIMIT = 500 
-USER_RATE_LIMIT = 10
+GLOBAL_FREE_TIER_LIMIT = 250
+# ~1000 chars per minute of speech, 2 hours = 120 minutes = 120,000 chars
+MAX_FREE_TIER_TRANSCRIPT_LENGTH = 120_000
 
 
 def normalize_spacing(text: str) -> str:
@@ -155,53 +156,12 @@ async def get_video_metadata(video_id) -> VideoMetadata:
     )
 
 
-async def user_rate_limit_exceeded(
-    request: Request, supabase=Depends(get_supabase_client)
-):
-    # Get client IP from request
-    client_ip = request.client.host if request.client else None
-    if not client_ip:
-        # If no client IP available, don't enforce rate limit
-        logger.warning("No client IP available for rate limiting")
-        return False
-    
-    result = (
-        supabase.table("rate_limits")
-        .select("count")
-        .eq("ip", client_ip)
-        .execute()
-    )
-    if not result.data:
-        return False
-    count = result.data[0]["count"]
-    return count >= USER_RATE_LIMIT
-
-
-async def incr_user_rate_limit(request: Request, supabase=Depends(get_supabase_client)):
-    # Get client IP from request
-    client_ip = request.client.host if request.client else None
-    if not client_ip:
-        # If no client IP available, skip rate limit increment
-        logger.warning("No client IP available for rate limit increment")
-        return
-    
-    result = (
-        supabase.table("rate_limits")
-        .select("count")
-        .eq("ip", client_ip)
-        .execute()
-    )
-    new_count = result.data[0]["count"] + 1 if len(result.data) > 0 else 1
-    supabase.table("rate_limits").update({"count": new_count}).eq(
-        "ip", client_ip
-    ).execute()
-
-
-async def net_api_limit_reached(supabase, limit: int = TOTAL_API_USAGE_LIMIT):
+async def global_free_tier_limit_reached(supabase) -> bool:
+    """Check if global free tier limit (100 summaries) has been reached."""
     response = supabase.table("api_usage").select("total_hits").eq("id", 1).execute()
     if len(response.data) == 0:
         return False
-    return response.data[0]["total_hits"] >= limit
+    return response.data[0]["total_hits"] >= GLOBAL_FREE_TIER_LIMIT
 
 
 async def incr_api_usage(supabase):
@@ -212,11 +172,16 @@ async def incr_api_usage(supabase):
     ).execute()
 
 
-async def get_claude_completion(messages, system_prompt, anthropic_client) -> str:
+async def get_claude_completion(messages, system_prompt, anthropic_client, model_choice=None) -> str:
+    # Default to Haiku if no model specified
+    if model_choice is None:
+        model_id = MODEL_IDS[ModelChoice.HAIKU_4_5]
+    else:
+        model_id = MODEL_IDS[model_choice]
+
     try:
         completion = anthropic_client.messages.create(
-            # model="claude-sonnet-4-5-20250929",
-            model="claude-haiku-4-5-20251001",
+            model=model_id,
             system=system_prompt,
             messages=messages,
             max_tokens=20_000,
@@ -243,29 +208,18 @@ async def get_anthropic_client_with_rate_limiting(
     Determine which Anthropic client to use based on rate limits and API key availability.
 
     Returns:
-        tuple: (anthropic_client, should_increment_user_rate_limit)
+        tuple: (anthropic_client, should_increment_usage)
     """
-    from .video_overview_deps import get_anthropic_client
+    # If user has their own API key, use it directly (no limits)
+    if user_api_key:
+        return get_anthropic_client(True, user_api_key), False
 
-    user_api_limit_reached = await user_rate_limit_exceeded(request, supabase)
-    if user_api_limit_reached:
-        if not user_api_key:
-            raise HTTPException(
-                status_code=429,
-                detail="Free tier quota exceeded. Please use your API key to continue.",
-            )
-        else:
-            return get_anthropic_client(True, user_api_key), False
+    # Check global free tier limit
+    limit_reached = await global_free_tier_limit_reached(supabase)
+    if limit_reached:
+        raise HTTPException(
+            status_code=429,
+            detail="All 250 free video summaries have been used. Please add your Claude API key to continue.",
+        )
 
-    else:
-        api_limit_reached = await net_api_limit_reached(supabase)
-        if not api_limit_reached:
-            return get_anthropic_client(False), True
-        else:
-            if not user_api_key:
-                raise HTTPException(
-                    status_code=429,
-                    detail="Total API limit reached right now. Please use your API key.",
-                )
-            else:
-                return get_anthropic_client(True, user_api_key), False
+    return get_anthropic_client(False), True
