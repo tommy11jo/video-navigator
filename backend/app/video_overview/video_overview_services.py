@@ -11,7 +11,6 @@ from .video_overview_deps import get_supabase_client
 from fastapi import Depends, HTTPException, Request
 from youtube_transcript_api import YouTubeTranscriptApi
 import logging
-import random
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -32,35 +31,25 @@ def normalize_spacing(text: str) -> str:
     return text
 
 
-def build_webshare_proxy_from_env() -> dict | None:
-    """Build Webshare proxy configuration from environment variables.
-    
+def build_decodo_proxy_from_env() -> dict | None:
+    """Build Decodo (Smartproxy) residential proxy configuration from environment variables.
+
     Returns a proxies dict for use with requests/youtube_transcript_api,
     or None if required env vars are not set.
     """
-    
-    username = os.getenv("WEBSHARE_PROXY_USERNAME")
-    password = os.getenv("WEBSHARE_PROXY_PASSWORD")
-    
-    # Support multiple proxy servers - try rotating through them
-    proxy_list_str = os.getenv("WEBSHARE_PROXY_LIST")
-    if proxy_list_str:
-        # Format: "host1:port1,host2:port2,host3:port3"
-        proxies = [p.strip() for p in proxy_list_str.split(",")]
-        selected = random.choice(proxies)
-        host, port = selected.split(":")
-        logger.info(f"Using random proxy from list: {host}:{port}")
-    else:
-        # Fallback to single proxy
-        host = os.getenv("WEBSHARE_PROXY_HOST")
-        port = os.getenv("WEBSHARE_PROXY_PORT")
-    
-    logger.info(f"Proxy env vars - username: {'set' if username else 'missing'}, password: {'set' if password else 'missing'}, host: {'set' if host else 'missing'}, port: {'set' if port else 'missing'}")
-    
-    if not all([username, password, host, port]):
-        logger.error("Missing required Webshare proxy environment variables")
+    username = os.getenv("DECODO_PROXY_USERNAME")
+    password = os.getenv("DECODO_PROXY_PASSWORD")
+
+    # Decodo residential proxy endpoint
+    host = "gate.decodo.com"
+    port = "10001"
+
+    logger.info(f"Decodo proxy env vars - username: {'set' if username else 'missing'}, password: {'set' if password else 'missing'}")
+
+    if not all([username, password]):
+        logger.error("Missing required Decodo proxy environment variables")
         return None
-    
+
     proxy_url = f"http://{username}:{password}@{host}:{port}"
     return {"http": proxy_url, "https": proxy_url}
 
@@ -71,9 +60,9 @@ async def get_transcript(video_id: str) -> Transcript | None:
     try:
         logger.info(f"Fetching transcript for video {video_id}")
         if is_prod():
-            proxy = build_webshare_proxy_from_env()
+            proxy = build_decodo_proxy_from_env()
             if not proxy:
-                logger.warning("Production environment detected but Webshare proxy env vars not set. Transcript fetching may fail.")
+                logger.warning("Production environment detected but Decodo proxy env vars not set. Transcript fetching may fail.")
             
             transcript = YouTubeTranscriptApi.get_transcript(
                 video_id,
